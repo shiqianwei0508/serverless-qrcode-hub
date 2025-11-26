@@ -2,6 +2,10 @@ name = "serverless-qrcode-hub"
 main = "index.js"
 compatibility_date = "2025-03-10"
 
+[env.dev.vars]
+# 开发环境的密码
+PASSWORD = "test1234"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "qrcode_hub"
