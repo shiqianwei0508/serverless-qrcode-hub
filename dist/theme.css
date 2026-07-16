@@ -139,18 +139,21 @@ body {
 }
 @keyframes shimmer { 100% { transform: translateX(100%); } }
 
-/* ---------- 9. 表格滚动条美化 ---------- */
-.table-responsive::-webkit-scrollbar { height: 6px; }
-.table-responsive::-webkit-scrollbar-track {
-  background: color-mix(in oklab, var(--color-base-300) 60%, transparent);
-  border-radius: 3px;
+/* ---------- 9. 卡片网格 ---------- */
+.mapping-card {
+  transition: box-shadow .2s ease, transform .15s ease, border-color .2s ease;
+  border: 1px solid color-mix(in oklab, var(--color-base-300) 70%, transparent);
 }
-.table-responsive::-webkit-scrollbar-thumb {
-  background: color-mix(in oklab, var(--color-primary) 35%, transparent);
-  border-radius: 3px;
+.mapping-card:hover {
+  box-shadow: 0 4px 16px -6px rgba(15, 23, 42, .15);
+  border-color: color-mix(in oklab, var(--color-primary) 25%, transparent);
+  transform: translateY(-1px);
 }
-.table-responsive::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in oklab, var(--color-primary) 55%, transparent);
+.mapping-card .join .btn {
+  transition: transform .1s ease;
+}
+.mapping-card .join .btn:active {
+  transform: scale(.95);
 }
 
 /* ---------- 10. 登录页 ---------- */

@@ -19,111 +19,23 @@
             opacity: 0;
         }
 
-        /* 表格样式优化 */
-        .table-responsive table {
-            table-layout: fixed;
-            width: 100%;
-        }
-
-        .table-responsive td, .table-responsive th {
-            vertical-align: top;
-            word-break: break-word;
-            padding: 0.75rem 0.5rem;
-        }
-
-        .table-responsive th:nth-child(1),
-        .table-responsive td:nth-child(1) { width: 15%; }
-        .table-responsive th:nth-child(2),
-        .table-responsive td:nth-child(2) { width: 12%; }
-        .table-responsive th:nth-child(3),
-        .table-responsive td:nth-child(3) {
-            width: 28%;
-            white-space: normal;
-            overflow-wrap: break-word;
-        }
-        .table-responsive th:nth-child(4),
-        .table-responsive td:nth-child(4) { width: 12%; }
-        .table-responsive th:nth-child(5),
-        .table-responsive td:nth-child(5) { width: 13%; }
-        .table-responsive th:nth-child(6),
-        .table-responsive td:nth-child(6) { width: 20%; }
-
-        .table-responsive tr.editing {
-            background-color: color-mix(in oklab, var(--color-primary) 10%, transparent);
-        }
-
-        .table-responsive tr.editing td {
-            padding-top: 1rem;
-            padding-bottom: 1rem;
-        }
-
+        /* 操作按钮图标/文字响应式 */
         @media (max-width: 768px) {
             body { padding: 0; margin: 8px auto; }
             .card-body { padding: 1rem; }
-
-            .table-responsive {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                position: relative;
-                margin: 0 -1rem;
-                padding: 0 1rem;
-                width: calc(100% + 2rem);
-                min-height: 100px;
-            }
-
-            .table-responsive table {
-                min-width: 700px;
-                font-size: 0.875rem;
-            }
-
-            .table-responsive td,
-            .table-responsive th {
-                padding: 0.5rem;
-                white-space: normal;
-                line-height: 1.4;
-            }
-
-            .table-responsive th:nth-child(1),
-            .table-responsive td:nth-child(1) { min-width: 100px; max-width: 130px; }
-            .table-responsive th:nth-child(2),
-            .table-responsive td:nth-child(2) { min-width: 80px; max-width: 100px; }
-            .table-responsive th:nth-child(3),
-            .table-responsive td:nth-child(3) { min-width: 160px; max-width: 240px; }
-            .table-responsive th:nth-child(4),
-            .table-responsive td:nth-child(4) { min-width: 90px; max-width: 110px; }
-            .table-responsive th:nth-child(5),
-            .table-responsive td:nth-child(5) { min-width: 80px; max-width: 100px; }
-            .table-responsive th:nth-child(6),
-            .table-responsive td:nth-child(6) {
-                min-width: 130px;
-                position: sticky;
-                right: 0;
-                background: var(--b1);
-                box-shadow: -4px 0 6px -2px rgba(0, 0, 0, 0.1);
-            }
-
-            /* 操作按钮：小屏只显示图标 */
-            .table-responsive .join { flex-wrap: nowrap; gap: 0.15rem; }
-            .table-responsive .join .btn {
+            .mapping-card .join .btn {
                 padding: 0.3rem 0.4rem;
                 min-height: unset;
                 height: auto;
             }
-            .table-responsive .join .btn .btn-text { display: none; }
-            .table-responsive .join .btn .btn-icon { display: inline; margin: 0; }
-
-            .table-responsive tr.editing td { padding: 0.75rem 0.5rem; }
-            .table-responsive tr.editing input,
-            .table-responsive tr.editing textarea {
-                font-size: 0.875rem;
-                padding: 0.25rem 0.5rem;
-            }
+            .mapping-card .join .btn .btn-text { display: none; }
+            .mapping-card .join .btn .btn-icon { display: inline; margin: 0; }
         }
 
         /* 桌面端：按钮显示文字，图标可选显示 */
         @media (min-width: 769px) {
-            .table-responsive .join .btn .btn-icon { display: none; }
-            .table-responsive .join .btn .btn-text { display: inline; }
+            .mapping-card .join .btn .btn-icon { display: none; }
+            .mapping-card .join .btn .btn-text { display: inline; }
         }
 
         #loading {
@@ -191,7 +103,50 @@
         <form method="dialog" class="modal-backdrop"><button>关闭</button></form>
     </dialog>
 
-    <!-- 移动端编辑模态框 -->
+    <!-- 详情模态框（只读） -->
+    <dialog id="detail-modal" class="modal">
+        <div class="modal-box rounded-2xl max-w-lg w-[95%]">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+            </form>
+            <h3 class="font-bold text-lg mb-5 section-title">短链详情</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="label pb-1"><span class="label-text text-base-content/60 text-xs">条目名称</span></label>
+                    <p id="detailName" class="text-base font-semibold"></p>
+                </div>
+                <div>
+                    <label class="label pb-1"><span class="label-text text-base-content/60 text-xs">短链名</span></label>
+                    <p id="detailPath" class="text-base font-mono"></p>
+                </div>
+                <div>
+                    <label class="label pb-1"><span class="label-text text-base-content/60 text-xs">目标 URL</span></label>
+                    <p id="detailTarget" class="text-sm break-all text-base-content/80 bg-base-200 rounded-lg p-3"></p>
+                </div>
+                <div>
+                    <label class="label pb-1"><span class="label-text text-base-content/60 text-xs">有效日期</span></label>
+                    <p id="detailExpiry" class="text-base"></p>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span id="detailEnabled" class="badge badge-lg"></span>
+                    <span id="detailWechat" class="badge badge-info badge-lg hidden">微信</span>
+                    <span id="detailPinned" class="badge badge-primary badge-lg hidden">置顶</span>
+                </div>
+            </div>
+            <div class="modal-action mt-5">
+                <button id="detailEditBtn" class="btn btn-warning flex-1 h-11 text-base">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    编辑
+                </button>
+                <form method="dialog">
+                    <button class="btn btn-ghost flex-1 h-11 text-base">关闭</button>
+                </form>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop"><button>关闭</button></form>
+    </dialog>
+
+    <!-- 编辑模态框 -->
     <dialog id="edit-modal" class="modal">
         <div class="modal-box rounded-2xl max-w-lg w-[95%]">
             <form method="dialog">
@@ -399,6 +354,20 @@
                                 </svg>
                             </button>
                         </div>
+                        <div class="join shadow-sm shrink-0">
+                            <button id="sortNameBtn" class="join-item btn btn-xs md:btn-sm btn-ghost" title="按名称排序">
+                                <svg id="sortNameIcon" xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 md:w-4 md:h-4 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+                                </svg>
+                                <span class="hidden sm:inline ml-0.5">名称</span>
+                            </button>
+                            <button id="sortPathBtn" class="join-item btn btn-xs md:btn-sm btn-ghost" title="按短链名排序">
+                                <svg id="sortPathIcon" xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 md:w-4 md:h-4 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+                                </svg>
+                                <span class="hidden sm:inline ml-0.5">短链</span>
+                            </button>
+                        </div>
                         <div class="join shadow-lg shrink-0 filter-btn-group">
                             <button id="showAllBtn" class="join-item btn btn-xs md:btn-sm btn-primary">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -423,43 +392,14 @@
                     <span class="loading loading-spinner loading-lg"></span>
                 </div>
 
-                <div class="overflow-x-auto table-responsive">
-                    <div id="skeleton" class="hidden">
-                        <div class="skeleton h-4 w-28 mb-4"></div>
-                        <div class="space-y-4">
-                            <div class="flex gap-4"><div class="skeleton h-4 w-1/5"></div><div class="skeleton h-4 w-1/5"></div><div class="skeleton h-4 w-1/5"></div><div class="skeleton h-4 w-1/5"></div><div class="skeleton h-4 w-1/5"></div></div>
-                            <div class="flex gap-4"><div class="skeleton h-4 w-1/5"></div><div class="skeleton h-4 w-1/5"></div><div class="skeleton h-4 w-1/5"></div><div class="skeleton h-4 w-1/5"></div><div class="skeleton h-4 w-1/5"></div></div>
-                            <div class="flex gap-4"><div class="skeleton h-4 w-1/5"></div><div class="skeleton h-4 w-1/5"></div><div class="skeleton h-4 w-1/5"></div><div class="skeleton h-4 w-1/5"></div><div class="skeleton h-4 w-1/5"></div></div>
-                        </div>
+                <div id="skeleton" class="hidden">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="card bg-base-100 p-5"><div class="skeleton h-5 w-2/3 mb-3"></div><div class="skeleton h-4 w-1/3 mb-4"></div><div class="flex gap-2"><div class="skeleton h-8 flex-1"></div><div class="skeleton h-8 flex-1"></div><div class="skeleton h-8 flex-1"></div></div></div>
+                        <div class="card bg-base-100 p-5"><div class="skeleton h-5 w-2/3 mb-3"></div><div class="skeleton h-4 w-1/3 mb-4"></div><div class="flex gap-2"><div class="skeleton h-8 flex-1"></div><div class="skeleton h-8 flex-1"></div><div class="skeleton h-8 flex-1"></div></div></div>
+                        <div class="card bg-base-100 p-5"><div class="skeleton h-5 w-2/3 mb-3"></div><div class="skeleton h-4 w-1/3 mb-4"></div><div class="flex gap-2"><div class="skeleton h-8 flex-1"></div><div class="skeleton h-8 flex-1"></div><div class="skeleton h-8 flex-1"></div></div></div>
                     </div>
-
-                    <table class="table table-zebra w-full">
-                        <thead>
-                            <tr>
-                                <th class="w-[15%]">
-                                    <button type="button" id="sortNameHeader" class="inline-flex items-center gap-1 cursor-pointer select-none hover:text-primary transition-colors" title="点击按名称首字母排序">
-                                        条目名称
-                                        <svg id="sortNameIcon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
-                                        </svg>
-                                    </button>
-                                </th>
-                                <th class="w-[12%]">
-                                    <button type="button" id="sortPathHeader" class="inline-flex items-center gap-1 cursor-pointer select-none hover:text-primary transition-colors" title="点击按短链名排序">
-                                        短链名
-                                        <svg id="sortPathIcon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
-                                        </svg>
-                                    </button>
-                                </th>
-                                <th class="w-[28%]">目标 URL</th>
-                                <th class="w-[15%]">有效日期</th>
-                                <th class="w-[30%]">状态</th>
-                            </tr>
-                        </thead>
-                        <tbody id="mappingsTableBody"></tbody>
-                    </table>
                 </div>
+                <div id="cards-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 
                 <div class="flex flex-col sm:flex-row justify-between items-center mt-4 gap-3">
                     <div class="flex items-center gap-2 whitespace-nowrap text-base-content/70 text-sm">
@@ -811,9 +751,9 @@
             /* ────────────────────────── */
 
             async function loadMappings() {
-                const tableBody = document.getElementById('mappingsTableBody');
+                const cardsContainer = document.getElementById('cards-container');
                 const skeleton = document.getElementById('skeleton');
-                tableBody.style.display = 'none';
+                cardsContainer.style.display = 'none';
                 skeleton.classList.remove('hidden');
                 try {
                     const query = searchKeyword
@@ -837,18 +777,18 @@
                     showAlert('加载数据失败，请刷新页面重试');
                 } finally {
                     skeleton.classList.add('hidden');
-                    tableBody.style.display = '';
+                    cardsContainer.style.display = '';
                 }
             }
 
             function renderCurrentPage() {
-                const table = document.getElementById('mappingsTableBody');
-                table.innerHTML = '';
+                const container = document.getElementById('cards-container');
+                container.innerHTML = '';
                 const fragment = document.createDocumentFragment();
                 for (const [path, mapping] of allMappings) {
-                    fragment.appendChild(createMappingRow(path, mapping));
+                    fragment.appendChild(createMappingCard(path, mapping));
                 }
-                table.appendChild(fragment);
+                container.appendChild(fragment);
             }
 
             async function addMapping() {
@@ -1001,240 +941,105 @@
                 modal.showModal();
             }
 
-            function createMappingRow(path, mapping) {
-                const row = document.createElement('tr');
-                row.dataset.originalData = JSON.stringify({
+            function createMappingCard(path, mapping) {
+                const card = document.createElement('div');
+                card.className = 'mapping-card card bg-base-100 shadow-sm p-4';
+                card.dataset.originalData = JSON.stringify({
                     name: mapping.name || '', path: path, target: mapping.target,
                     expiry: mapping.expiry || null, enabled: mapping.enabled,
                     isWechat: mapping.isWechat, qrCodeData: mapping.qrCodeData,
                     pinned: mapping.pinned
                 });
 
-                const cellsData = [
-                    { text: mapping.name || '-', data: mapping.name || '-' },
-                    { text: path, data: path },
-                    { text: mapping.target, data: mapping.target },
-                    { text: timestampToDateStr(mapping.expiry), data: mapping.expiry || '' }
-                ];
+                const nameDisplay = mapping.name || '-';
+                const enabledBadge = mapping.enabled
+                    ? '<span class="badge badge-success badge-sm">启用</span>'
+                    : '<span class="badge badge-error badge-sm">禁用</span>';
+                const wechatBadge = mapping.isWechat ? '<span class="badge badge-info badge-sm">微信</span>' : '';
+                const pinnedBadge = mapping.pinned ? '<span class="badge badge-primary badge-sm">置顶</span>' : '';
 
-                cellsData.forEach(({ text, data }, index) => {
-                    const cell = document.createElement('td');
-                    if (index === 2) {
-                        cell.classList.add('whitespace-normal', 'break-words', 'max-w-xs');
-                        cell.style.wordBreak = 'break-all';
-                        cell.style.minWidth = '200px';
-                    }
-                    cell.textContent = text;
-                    cell.dataset.original = data;
-                    row.appendChild(cell);
-                });
-
-                const statusCell = document.createElement('td');
-                statusCell.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <span class="badge ${mapping.enabled ? 'badge-success' : 'badge-error'}">${mapping.enabled ? '启用' : '禁用'}</span>
-                        ${mapping.isWechat ? '<span class="badge badge-info">微信</span>' : ''}
-                        ${mapping.pinned ? '<span class="badge badge-primary">置顶</span>' : ''}
-                    </div>`;
-                row.appendChild(statusCell);
-
-                const actionsCell = document.createElement('td');
-                actionsCell.innerHTML = `
-                    <div class="join">
-                        <button class="join-item btn btn-warning btn-sm">
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-2 mb-2">
+                        <h3 class="font-semibold text-base leading-tight break-all flex-1 min-w-0" title="${escapeHtml(nameDisplay)}">${escapeHtml(nameDisplay)}</h3>
+                        <div class="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                            ${enabledBadge} ${wechatBadge} ${pinnedBadge}
+                        </div>
+                    </div>
+                    <div class="join w-full mt-3">
+                        <button class="join-item btn btn-sm flex-1 btn-detail" title="查看详情">
+                            <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg></span>
+                            <span class="btn-text">详情</span>
+                        </button>
+                        <button class="join-item btn btn-warning btn-sm flex-1 btn-edit" title="编辑">
                             <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></span>
                             <span class="btn-text">编辑</span>
                         </button>
-                        <button class="join-item btn btn-error btn-sm">
+                        <button class="join-item btn btn-error btn-sm flex-1 btn-delete" title="删除">
                             <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></span>
                             <span class="btn-text">删除</span>
                         </button>
-                        <button class="join-item btn btn-info btn-sm">
+                        <button class="join-item btn btn-info btn-sm flex-1 btn-qr" title="查看二维码">
                             <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h1.5m0 0L9 4m0 0h6m-6 0l-1 14.5M9 4l1 14.5M15 4h2l-1 14.5M12 4V3m0 0h.01M5 4l-.68-1.41M18 4l.68-1.41M10 8h.01M14 8h.01M10 12h.01M14 12h.01" /></svg></span>
                             <span class="btn-text">二维码</span>
                         </button>
-                        <button class="join-item btn btn-sm ${mapping.pinned ? 'btn-accent' : 'btn-ghost'} btn-pin">
+                        <button class="join-item btn btn-sm flex-1 btn-pin ${mapping.pinned ? 'btn-accent' : 'btn-ghost'}" title="${mapping.pinned ? '取消置顶' : '置顶'}">
                             <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg></span>
                             <span class="btn-text">${mapping.pinned ? '取消' : '置顶'}</span>
                         </button>
                     </div>`;
-                const [editBtn, deleteBtn, qrBtn] = actionsCell.querySelectorAll('button:not(.btn-pin)');
-                const pinBtn = actionsCell.querySelector('.btn-pin');
-                editBtn.onclick = () => toggleEditMode(row);
-                deleteBtn.onclick = (e) => { e.preventDefault(); deleteMapping(path); };
-                qrBtn.onclick = () => generateQRForMapping(window.location.origin + '/' + path, path);
-                pinBtn.onclick = () => togglePin(path, mapping.pinned);
-                row.appendChild(actionsCell);
-                return row;
+
+                card.querySelector('.btn-detail').onclick = () => showDetailModal(path, mapping);
+                card.querySelector('.btn-edit').onclick = () => {
+                    const od = JSON.parse(card.dataset.originalData);
+                    openEditModal(od);
+                };
+                card.querySelector('.btn-delete').onclick = (e) => { e.preventDefault(); deleteMapping(path); };
+                card.querySelector('.btn-qr').onclick = () => generateQRForMapping(window.location.origin + '/' + path, path);
+                card.querySelector('.btn-pin').onclick = () => togglePin(path, mapping.pinned);
+
+                return card;
             }
 
-            async function toggleEditMode(row) {
-                const isEditing = row.classList.toggle('editing');
-                const originalData = JSON.parse(row.dataset.originalData);
+            function showDetailModal(path, mapping) {
+                document.getElementById('detailName').textContent = mapping.name || '-';
+                document.getElementById('detailPath').textContent = path;
+                document.getElementById('detailTarget').textContent = mapping.target || '-';
+                document.getElementById('detailExpiry').textContent = timestampToDateStr(mapping.expiry);
 
-                if (isEditing) {
-                    // 移动端：打开模态框编辑
-                    if (window.innerWidth <= 768) {
-                        row.classList.remove('editing');
-                        await openEditModal(originalData, row);
-                        return;
-                    }
-                    try {
-                        const response = await fetch(`/api/mapping?path=${originalData.path}`);
-                        if (!response.ok) throw new Error('获取数据失败');
-                        const mappingData = await response.json();
+                const enabledEl = document.getElementById('detailEnabled');
+                enabledEl.textContent = mapping.enabled ? '启用' : '禁用';
+                enabledEl.className = 'badge badge-lg ' + (mapping.enabled ? 'badge-success' : 'badge-error');
 
-                        cells[0].innerHTML = `<input type="text" class="input input-bordered input-sm w-full" value="${mappingData.name || ''}">`;
-                        cells[1].innerHTML = `<input type="text" class="input input-bordered input-sm w-full" value="${mappingData.path}">`;
-                        cells[2].innerHTML = `<textarea class="textarea textarea-bordered textarea-sm w-full h-24" style="resize:none; word-break:break-all;">${mappingData.target}</textarea>`;
-                        cells[3].innerHTML = `<input type="date" class="input input-bordered input-sm w-full" value="${timestampToInputValue(mappingData.expiry)}">`;
-                        cells[4].innerHTML = `
-                            <div class="flex flex-col gap-2">
-                                <label class="cursor-pointer label justify-start gap-2">
-                                    <input type="checkbox" class="toggle toggle-primary toggle-sm" ${mappingData.enabled ? 'checked' : ''}>
-                                    <span class="label-text">启用</span>
-                                </label>
-                                <label class="cursor-pointer label justify-start gap-2">
-                                    <input type="checkbox" class="toggle toggle-primary toggle-sm" ${mappingData.isWechat ? 'checked' : ''}>
-                                    <span class="label-text">微信</span>
-                                </label>
-                            </div>`;
-                        const actionsCell = cells[5];
-                        actionsCell.innerHTML = `
-                            <div class="join">
-                                <button class="join-item btn btn-success btn-sm">
-                                    <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg></span>
-                                    <span class="btn-text">保存</span>
-                                </button>
-                                <button class="join-item btn btn-primary btn-sm">
-                                    <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></span>
-                                    <span class="btn-text">取消</span>
-                                </button>
-                                <button class="join-item btn btn-info btn-sm">
-                                    <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h1.5m0 0L9 4m0 0h6m-6 0l-1 14.5M9 4l1 14.5M15 4h2l-1 14.5M12 4V3m0 0h.01M5 4l-.68-1.41M18 4l.68-1.41M10 8h.01M14 8h.01M10 12h.01M14 12h.01" /></svg></span>
-                                    <span class="btn-text">二维码</span>
-                                </button>
-                                <button class="join-item btn btn-sm ${originalData.pinned ? 'btn-accent' : 'btn-ghost'} btn-pin">
-                                    <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg></span>
-                                    <span class="btn-text">${originalData.pinned ? '取消' : '置顶'}</span>
-                                </button>
-                            </div>`;
-                        const [saveBtn, cancelBtn, qrBtn] = actionsCell.querySelectorAll('button:not(.btn-pin)');
-                        const pinBtn = actionsCell.querySelector('.btn-pin');
-                        saveBtn.onclick = () => saveEdit(row);
-                        cancelBtn.onclick = () => restoreRow(row);
-                        qrBtn.onclick = () => generateQRForMapping(window.location.origin + '/' + originalData.path, originalData.path);
-                        pinBtn.onclick = () => togglePin(originalData.path, originalData.pinned);
-                    } catch (error) {
-                        console.error('获取数据失败:', error);
-                        showAlert('获取数据失败，请重试');
-                        row.classList.remove('editing');
-                    }
-                }
+                const wechatEl = document.getElementById('detailWechat');
+                wechatEl.classList.toggle('hidden', !mapping.isWechat);
+
+                const pinnedEl = document.getElementById('detailPinned');
+                pinnedEl.classList.toggle('hidden', !mapping.pinned);
+
+                // 编辑按钮：打开编辑模态框并关闭详情
+                const detailEditBtn = document.getElementById('detailEditBtn');
+                const doEdit = () => {
+                    document.getElementById('detail-modal').close();
+                    const od = { name: mapping.name || '', path: path, target: mapping.target,
+                        expiry: mapping.expiry || null, enabled: mapping.enabled,
+                        isWechat: mapping.isWechat, qrCodeData: mapping.qrCodeData, pinned: mapping.pinned };
+                    openEditModal(od);
+                };
+                detailEditBtn.onclick = doEdit;
+
+                document.getElementById('detail-modal').showModal();
             }
 
-            async function saveEdit(row) {
-                const cells = row.cells;
-                const rowOriginalData = JSON.parse(row.dataset.originalData);
-                const newName = cells[0].querySelector('input').value;
-                const newPath = cells[1].querySelector('input').value;
-                const newTarget = cells[2].querySelector('textarea').value;
-                const newExpiry = dateToTimestamp(cells[3].querySelector('input').value);
-                const enabledToggle = cells[4].querySelector('input[type="checkbox"]');
-                const isWechatToggle = cells[4].querySelectorAll('input[type="checkbox"]')[1];
-                const newEnabled = enabledToggle.checked;
-                const newIsWechat = isWechatToggle ? isWechatToggle.checked : false;
-
-                const hasChanges =
-                    newName !== rowOriginalData.name ||
-                    newPath !== rowOriginalData.path ||
-                    newTarget !== rowOriginalData.target ||
-                    newExpiry !== rowOriginalData.expiry ||
-                    newEnabled !== rowOriginalData.enabled ||
-                    (isWechatToggle && newIsWechat !== rowOriginalData.isWechat);
-
-                if (!hasChanges) { restoreRow(row); return; }
-
-                try {
-                    const response = await fetch(`/api/mapping?path=${rowOriginalData.path}`);
-                    if (!response.ok) throw new Error('获取原有数据失败');
-                    const serverData = await response.json();
-                    const updateResponse = await fetch('/api/mapping', {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            originalPath: rowOriginalData.path, path: newPath, target: newTarget,
-                            name: newName, expiry: newExpiry || null, enabled: newEnabled,
-                            isWechat: newIsWechat, qrCodeData: serverData.qrCodeData
-                        })
-                    });
-                    if (!updateResponse.ok) {
-                        const data = await updateResponse.json();
-                        showAlert(data.message || data.error || '更新失败，请重试');
-                        return;
-                    }
-                    showAlert('更新成功', 'success');
-                    await loadMappings();
-                    const expiringBtn = document.getElementById('showExpiringBtn');
-                    const expiredBtn = document.getElementById('showExpiredBtn');
-                    if (expiringBtn.classList.contains('btn-warning')) {
-                        await loadExpiringMappings('expiring');
-                    } else if (expiredBtn.classList.contains('btn-error')) {
-                        await loadExpiringMappings('expired');
-                    }
-                } catch (error) {
-                    console.error('更新失败:', error);
-                    showAlert('更新失败，请检查网络连接后重试');
-                }
+            function escapeHtml(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
             }
 
-            function restoreRow(row) {
-                const cells = row.cells;
-                const originalData = JSON.parse(row.dataset.originalData);
-                cells[0].textContent = originalData.name || '-';
-                cells[1].textContent = originalData.path;
-                cells[2].textContent = originalData.target;
-                cells[3].textContent = timestampToDateStr(originalData.expiry);
-                cells[4].innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <span class="badge ${originalData.enabled ? 'badge-success' : 'badge-error'}">${originalData.enabled ? '启用' : '禁用'}</span>
-                        ${originalData.isWechat ? '<span class="badge badge-info">微信</span>' : ''}
-                        ${originalData.pinned ? '<span class="badge badge-primary">置顶</span>' : ''}
-                    </div>`;
-                const actionsCell = cells[5];
-                actionsCell.innerHTML = `
-                    <div class="join">
-                        <button class="join-item btn btn-warning btn-sm">
-                            <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></span>
-                            <span class="btn-text">编辑</span>
-                        </button>
-                        <button class="join-item btn btn-error btn-sm">
-                            <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></span>
-                            <span class="btn-text">删除</span>
-                        </button>
-                        <button class="join-item btn btn-info btn-sm">
-                            <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h1.5m0 0L9 4m0 0h6m-6 0l-1 14.5M9 4l1 14.5M15 4h2l-1 14.5M12 4V3m0 0h.01M5 4l-.68-1.41M18 4l.68-1.41M10 8h.01M14 8h.01M10 12h.01M14 12h.01" /></svg></span>
-                            <span class="btn-text">二维码</span>
-                        </button>
-                        <button class="join-item btn btn-sm ${originalData.pinned ? 'btn-accent' : 'btn-ghost'} btn-pin">
-                            <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg></span>
-                            <span class="btn-text">${originalData.pinned ? '取消' : '置顶'}</span>
-                        </button>
-                    </div>`;
-                const [editBtn, deleteBtn, qrBtn] = actionsCell.querySelectorAll('button:not(.btn-pin)');
-                const pinBtn = actionsCell.querySelector('.btn-pin');
-                editBtn.onclick = () => toggleEditMode(row);
-                deleteBtn.onclick = () => deleteMapping(originalData.path);
-                qrBtn.onclick = () => generateQRForMapping(window.location.origin + '/' + originalData.path, originalData.path);
-                pinBtn.onclick = () => togglePin(originalData.path, originalData.pinned);
-                row.classList.remove('editing');
-            }
-
-            let currentEditRow = null; // 移动端模态框编辑的行引用
+            // ───────────────────── 编辑模态框 ─────────────────────
             let currentEditOriginalData = null;
 
-            async function openEditModal(originalData, row) {
-                currentEditRow = row;
+            async function openEditModal(originalData) {
                 currentEditOriginalData = originalData;
                 try {
                     const response = await fetch(`/api/mapping?path=${originalData.path}`);
@@ -1383,8 +1188,8 @@
             // 表头排序：条目名称 / 短链名，互斥，升/降切换
             const sortState = { name: null, path: null }; // null=未排序, true=升序, false=降序
             const sortConfig = {
-                name: { header: document.getElementById('sortNameHeader'), icon: document.getElementById('sortNameIcon'), get: item => String(item[1].name || '') },
-                path: { header: document.getElementById('sortPathHeader'), icon: document.getElementById('sortPathIcon'), get: item => String(item[0] || '') }
+                name: { header: document.getElementById('sortNameBtn'), icon: document.getElementById('sortNameIcon'), get: item => String(item[1].name || '') },
+                path: { header: document.getElementById('sortPathBtn'), icon: document.getElementById('sortPathIcon'), get: item => String(item[0] || '') }
             };
             const SORT_UP = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />';
             const SORT_DOWN = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />';
@@ -1435,9 +1240,9 @@
             }
 
             async function loadExpiringMappings(type) {
-                const tableBody = document.getElementById('mappingsTableBody');
+                const cardsContainer = document.getElementById('cards-container');
                 const skeleton = document.getElementById('skeleton');
-                tableBody.style.display = 'none';
+                cardsContainer.style.display = 'none';
                 skeleton.classList.remove('hidden');
                 try {
                     const response = await fetch(`/api/expiring-mappings?page=${currentPage}&pageSize=${pageSize}`);
@@ -1455,13 +1260,14 @@
                     const start = (currentPage - 1) * pageSize;
                     const end = Math.min(start + pageSize, total);
                     const currentPageData = filteredMappings.slice(start, end);
-                    tableBody.innerHTML = '';
+                    cardsContainer.innerHTML = '';
                     currentPageData.forEach(mapping => {
-                        const row = createMappingRow(mapping.path, {
+                        const card = createMappingCard(mapping.path, {
                             name: mapping.name, target: mapping.target, expiry: mapping.expiry,
-                            enabled: mapping.enabled, isWechat: mapping.isWechat, qrCodeData: mapping.qrCodeData
+                            enabled: mapping.enabled, isWechat: mapping.isWechat,
+                            qrCodeData: mapping.qrCodeData, pinned: mapping.pinned
                         });
-                        tableBody.appendChild(row);
+                        cardsContainer.appendChild(card);
                     });
                     const totalPages = Math.ceil(total / pageSize);
                     document.getElementById('currentPage').textContent = currentPage;
@@ -1472,7 +1278,7 @@
                     showAlert('加载数据失败，请刷新页面重试');
                 } finally {
                     skeleton.classList.add('hidden');
-                    tableBody.style.display = '';
+                    cardsContainer.style.display = '';
                 }
             }
         });
