@@ -370,7 +370,14 @@
                                         </svg>
                                     </button>
                                 </th>
-                                <th class="w-[12%]">短链名</th>
+                                <th class="w-[12%]">
+                                    <button type="button" id="sortPathHeader" class="inline-flex items-center gap-1 cursor-pointer select-none hover:text-primary transition-colors" title="点击按短链名排序">
+                                        短链名
+                                        <svg id="sortPathIcon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+                                        </svg>
+                                    </button>
+                                </th>
                                 <th class="w-[28%]">目标 URL</th>
                                 <th class="w-[15%]">有效日期</th>
                                 <th class="w-[30%]">状态</th>
@@ -1083,22 +1090,41 @@
                 else await loadMappings();
             });
 
-            // 条目名称按首字母排序（升/降切换）
-            let nameSortAsc = true;
-            const sortNameHeader = document.getElementById('sortNameHeader');
-            const sortNameIcon = document.getElementById('sortNameIcon');
-            sortNameHeader.addEventListener('click', () => {
-                nameSortAsc = !nameSortAsc;
-                const dir = nameSortAsc ? 1 : -1;
+            // 表头排序：条目名称 / 短链名，互斥，升/降切换
+            const sortState = { name: null, path: null }; // null=未排序, true=升序, false=降序
+            const sortConfig = {
+                name: { header: document.getElementById('sortNameHeader'), icon: document.getElementById('sortNameIcon'), get: m => String(m.name || '') },
+                path: { header: document.getElementById('sortPathHeader'), icon: document.getElementById('sortPathIcon'), get: m => String(m.path || '') }
+            };
+            const SORT_UP = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />';
+            const SORT_DOWN = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />';
+            const SORT_NONE = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />';
+            function resetSortIcon(key) {
+                const c = sortConfig[key];
+                c.icon.innerHTML = SORT_NONE;
+                c.icon.classList.add('text-base-content/40');
+                c.icon.classList.remove('text-primary');
+            }
+            function applySort(key) {
+                const dir = sortState[key] ? 1 : -1;
                 allMappings.sort((a, b) =>
-                    dir * String(a[1].name || '').localeCompare(String(b[1].name || ''), 'zh-Hans-CN', { sensitivity: 'base' })
+                    dir * sortConfig[key].get(a[1]).localeCompare(sortConfig[key].get(b[1]), 'zh-Hans-CN', { sensitivity: 'base' })
                 );
                 renderCurrentPage();
-                const up = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />';
-                const down = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />';
-                sortNameIcon.innerHTML = nameSortAsc ? up : down;
-                sortNameIcon.classList.remove('text-base-content/40');
-                sortNameIcon.classList.add('text-primary');
+                const c = sortConfig[key];
+                c.icon.innerHTML = sortState[key] ? SORT_UP : SORT_DOWN;
+                c.icon.classList.remove('text-base-content/40');
+                c.icon.classList.add('text-primary');
+            }
+            Object.keys(sortConfig).forEach(key => {
+                sortConfig[key].header.addEventListener('click', () => {
+                    // 互斥：切换列时重置其他列的排序状态与图标
+                    Object.keys(sortConfig).forEach(other => {
+                        if (other !== key) { sortState[other] = null; resetSortIcon(other); }
+                    });
+                    sortState[key] = sortState[key] === null ? true : !sortState[key];
+                    applySort(key);
+                });
             });
 
             async function logout() {
