@@ -232,10 +232,19 @@
         </div>
 
         <!-- 二维码识别与短链创建 -->
-        <div class="card bg-base-100 shadow-xl mb-6">
-            <div class="card-body">
-                <h2 class="card-title text-lg section-title mb-4">二维码识别与短链创建</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="mb-6">
+            <div class="flex justify-center sm:justify-start">
+                <button id="toggleCreateBtn" type="button" class="btn btn-primary gap-2 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    添加短链二维码
+                </button>
+            </div>
+            <div id="createPanel" class="card bg-base-100 shadow-xl rounded-box mt-4 hidden">
+                <div class="card-body">
+                    <h2 class="card-title text-lg section-title mb-4">二维码识别与短链创建</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
                         <div id="qr-upload-area"
                             class="upload-area border-2 border-dashed p-8 text-center rounded-xl cursor-pointer">
@@ -301,6 +310,7 @@
                             <button id="addMappingBtn" class="btn btn-primary w-full">添加短链二维码</button>
                         </div>
                     </div>
+                </div>
                 </div>
             </div>
         </div>
@@ -421,6 +431,9 @@
             function initializePage() {
                 document.getElementById('logoutBtn').addEventListener('click', logout);
                 document.getElementById('addMappingBtn').addEventListener('click', addMapping);
+                document.getElementById('toggleCreateBtn').addEventListener('click', function () {
+                    document.getElementById('createPanel').classList.toggle('hidden');
+                });
                 setupQRUpload();
 
                 loadMappings();
