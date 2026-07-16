@@ -200,46 +200,52 @@
             </div>
         </div>
 
-        <!-- 使用说明 -->
-        <div class="card bg-base-100 shadow-xl mb-6">
-            <div class="card-body">
-                <h2 class="card-title text-lg section-title mb-4">使用说明</h2>
-                <div class="join join-vertical w-full">
-                    <div class="collapse collapse-arrow join-item border border-base-300">
-                        <input type="radio" name="my-accordion-4" checked="checked" />
-                        <div class="collapse-title text-base font-semibold">使用步骤</div>
-                        <div class="collapse-content">
-                            <ul class="list-disc list-inside space-y-1 text-base-content/80">
-                                <li>将群聊二维码拖动或点击上传到二维码识别区域，即可自动识别并填充到目标 URL 输入框</li>
-                                <li>在目标 URL 输入框中输入群聊名称、短链名称，选择过期时间或不设置，点击添加短链二维码</li>
-                                <li>在下方管理面板可查看已添加的短链，支持编辑、删除，并可查看或下载对应二维码</li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="collapse collapse-arrow join-item border border-base-300">
-                        <input type="radio" name="my-accordion-4" />
-                        <div class="collapse-title text-base font-semibold">注意事项</div>
-                        <div class="collapse-content">
-                            <ul class="list-disc list-inside space-y-1 text-base-content/80">
-                                <li>短链名只能包含字母、数字、下划线和横线</li>
-                                <li>可以设置短链的过期时间，不设置则永久有效</li>
-                                <li>如果过期会自动通过邮件通知</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 二维码识别与短链创建 -->
+        <!-- 操作按钮组 -->
         <div class="mb-6">
-            <div class="flex justify-center sm:justify-start">
+            <div class="flex flex-wrap justify-center sm:justify-start gap-3">
                 <button id="toggleCreateBtn" type="button" class="btn btn-primary gap-2 shadow-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                     </svg>
                     添加短链二维码
                 </button>
+                <button id="toggleHelpBtn" type="button" class="btn btn-ghost gap-2 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    使用说明
+                </button>
+            </div>
+
+            <!-- 使用说明面板 -->
+            <div id="helpPanel" class="card bg-base-100 shadow-xl rounded-box mt-4 hidden">
+                <div class="card-body">
+                    <h2 class="card-title text-lg section-title mb-4">使用说明</h2>
+                    <div class="join join-vertical w-full">
+                        <div class="collapse collapse-arrow join-item border border-base-300">
+                            <input type="radio" name="my-accordion-4" checked="checked" />
+                            <div class="collapse-title text-base font-semibold">使用步骤</div>
+                            <div class="collapse-content">
+                                <ul class="list-disc list-inside space-y-1 text-base-content/80">
+                                    <li>将群聊二维码拖动或点击上传到二维码识别区域，即可自动识别并填充到目标 URL 输入框</li>
+                                    <li>在目标 URL 输入框中输入群聊名称、短链名称，选择过期时间或不设置，点击添加短链二维码</li>
+                                    <li>在下方管理面板可查看已添加的短链，支持编辑、删除，并可查看或下载对应二维码</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="collapse collapse-arrow join-item border border-base-300">
+                            <input type="radio" name="my-accordion-4" />
+                            <div class="collapse-title text-base font-semibold">注意事项</div>
+                            <div class="collapse-content">
+                                <ul class="list-disc list-inside space-y-1 text-base-content/80">
+                                    <li>短链名只能包含字母、数字、下划线和横线</li>
+                                    <li>可以设置短链的过期时间，不设置则永久有效</li>
+                                    <li>如果过期会自动通过邮件通知</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div id="createPanel" class="card bg-base-100 shadow-xl rounded-box mt-4 hidden">
                 <div class="card-body">
@@ -432,7 +438,16 @@
                 document.getElementById('logoutBtn').addEventListener('click', logout);
                 document.getElementById('addMappingBtn').addEventListener('click', addMapping);
                 document.getElementById('toggleCreateBtn').addEventListener('click', function () {
-                    document.getElementById('createPanel').classList.toggle('hidden');
+                    const createPanel = document.getElementById('createPanel');
+                    const willShow = createPanel.classList.contains('hidden');
+                    createPanel.classList.toggle('hidden');
+                    if (willShow) document.getElementById('helpPanel').classList.add('hidden');
+                });
+                document.getElementById('toggleHelpBtn').addEventListener('click', function () {
+                    const helpPanel = document.getElementById('helpPanel');
+                    const willShow = helpPanel.classList.contains('hidden');
+                    helpPanel.classList.toggle('hidden');
+                    if (willShow) document.getElementById('createPanel').classList.add('hidden');
                 });
                 setupQRUpload();
 
