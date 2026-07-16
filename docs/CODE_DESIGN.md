@@ -612,7 +612,7 @@ const banPath = [ 'login','admin','__total_count','admin.html','login.html','dai
 ### 4.3 页面结构（HTML）
 
 - 两个 `<dialog>` 模态：
-  - `#detail-modal`：短链详情（只读，合并二维码预览）。含条目信息（`#detailName`/`#detailPath`/`#detailTarget`/`#detailExpiry`、状态 badge `#detailEnabled`/`#detailWechat`/`#detailPinned`）、二维码预览（`#qr-container`/`#qr-url` 只读/`#qr-show-logo` 复选/`#qr-dots-style` 下拉/`#qr-download` 下载按钮）、复制按钮 `#copyTargetBtn`（复制目标 URL）与 `#copyUrlBtn`（复制链接地址）、编辑按钮 `#detailEditBtn`。
+  - `#detail-modal`：短链详情（只读，合并二维码预览）。含条目信息（`#detailName`/`#detailPath`/`#detailTarget`/`#detailExpiry`、状态 badge `#detailEnabled`/`#detailWechat`/`#detailPinned`）、二维码预览（`#qr-loading` 加载进度条/`#qr-container`/`#qr-url` 只读/`#qr-show-logo` 复选/`#qr-dots-style` 下拉/`#qr-download` 下载按钮）、复制按钮 `#copyTargetBtn`（复制目标 URL）与 `#copyUrlBtn`（复制链接地址）、编辑按钮 `#detailEditBtn`。
   - `#delete-confirm-modal`：删除确认（`#confirm-delete-btn`）。
 - `#alertContainer`：浮动提示容器（顶部居中）。
 - 隐藏字段 `#qrCodeData`：保存当前上传二维码的 DataURL。
@@ -972,8 +972,9 @@ async function loadExpiringMappings(type) {
 
 - 表格行"详情"按钮（`btn-detail`）→ `showDetailModal(path, mapping)`。
 - 填充只读字段：`detailName`/`detailPath`/`detailTarget`/`detailExpiry`（`timestampToDateStr`）、状态 badge（`detailEnabled`/`detailWechat`/`detailPinned`）。
-- 内嵌二维码预览（`#qr-container`/`#qr-url`/`#qr-show-logo`/`#qr-dots-style`/`#qr-download`），逻辑同原 4.15 的预览/下载（`getQRConfig` → `QRCodeStyling.append` → `updateQRCode` 过渡 → 下载文件名 `qr-<path>-<时间戳>`）。`urlInput.value = window.location.origin + '/' + path`。
+- 内嵌二维码预览（`#qr-container`/`#qr-loading`/`#qr-url`/`#qr-show-logo`/`#qr-dots-style`/`#qr-download`）。`renderQR()` 封装渲染：`qrLoading` 显示加载进度条 → `container.innerHTML=''` → `new QRCodeStyling(getQRConfig(...)).append(container)` → 300ms 后隐藏进度条；初始与切换样式/logo 时均调用（含原 4.15 的 `updateQRCode` 200ms 过渡）。下载文件名 `qr-<path>-<时间戳>`。`urlInput.value = window.location.origin + '/' + path`。
 - 编辑按钮 `#detailEditBtn` → 关闭详情并 `openEditModal`（组装 `originalData`）。
+- **手机端可达性**：`.modal-box` 加 `max-height: calc(100vh - 4em); overflow-y: auto`，内容超长（含 300px 二维码）时弹窗可滚动，底部 `modal-action`（编辑/关闭）在窄屏不再被裁切。
 - **复制功能**：
   - `#copyTargetBtn` 与 `#detailTarget`（整段可点击）→ 复制 `mapping.target`，提示"目标 URL 已复制"。
   - `#copyUrlBtn` → 复制 `urlInput.value`，提示"链接地址已复制"。

@@ -105,6 +105,15 @@
                     <span id="detailPinned" class="badge badge-primary badge-lg hidden">置顶</span>
                 </div>
                 <div class="divider my-4">二维码</div>
+                <div id="qr-loading" class="w-full mb-3 hidden">
+                    <div class="flex items-center gap-2 text-xs text-base-content/50 mb-1.5">
+                        <span class="loading loading-spinner loading-xs"></span>
+                        <span>正在生成二维码…</span>
+                    </div>
+                    <div class="h-1.5 w-full rounded-full bg-base-200 overflow-hidden">
+                        <div class="h-full rounded-full bg-primary progress-indeterminate"></div>
+                    </div>
+                </div>
                 <div id="qr-container" class="flex justify-center mb-3"></div>
                 <div class="mb-3">
                     <label class="label pb-1"><span class="label-text text-base-content/60 text-xs">链接地址</span></label>
@@ -993,6 +1002,9 @@
                 if (savedShowLogo !== null) showLogoCheckbox.checked = savedShowLogo === 'true';
                 if (savedDotsStyle) dotsStyleSelect.value = savedDotsStyle;
 
+                const qrLoading = document.getElementById('qr-loading');
+                let currentQRCode = null;
+
                 const getQRConfig = (showLogo, dotsType) => ({
                     width: 300, height: 300, type: 'canvas', data: urlInput.value,
                     dotsOptions: { color: "#000000", type: dotsType },
@@ -1006,18 +1018,24 @@
                     } : {})
                 });
 
-                let currentQRCode = new QRCodeStyling(getQRConfig(showLogoCheckbox.checked, dotsStyleSelect.value));
-                currentQRCode.append(container);
+                // 渲染二维码并显示加载进度条，绘制完成（含微信 logo 异步加载）后隐藏
+                const renderQR = () => {
+                    qrLoading.classList.remove('hidden');
+                    container.innerHTML = '';
+                    currentQRCode = new QRCodeStyling(getQRConfig(showLogoCheckbox.checked, dotsStyleSelect.value));
+                    currentQRCode.append(container);
+                    setTimeout(() => qrLoading.classList.add('hidden'), 300);
+                };
+
+                renderQR();
 
                 const updateQRCode = () => {
                     container.classList.add('switching');
                     setTimeout(() => {
-                        container.innerHTML = '';
-                        currentQRCode = new QRCodeStyling(getQRConfig(showLogoCheckbox.checked, dotsStyleSelect.value));
-                        currentQRCode.append(container);
+                        renderQR();
+                        container.classList.remove('switching');
                         localStorage.setItem('qr-show-logo', showLogoCheckbox.checked);
                         localStorage.setItem('qr-dots-style', dotsStyleSelect.value);
-                        requestAnimationFrame(() => container.classList.remove('switching'));
                     }, 200);
                 };
 
