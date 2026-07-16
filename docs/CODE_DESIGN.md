@@ -214,19 +214,20 @@ function clearAuthCookie() {
 
 ### 2.4 数据库操作函数
 
-#### 2.4.1 `listMappings(page = 1, pageSize = 10)`
+#### 2.4.1 `listMappings(page = 1, pageSize = 10, search = '')`
 
 ```js
-async function listMappings(page = 1, pageSize = 10) { ... }
+async function listMappings(page = 1, pageSize = 10, search = '') { ... }
 ```
 
-- **入参**：`page`（页码，默认 1）、`pageSize`（每页条数，默认 10）。
+- **入参**：`page`（页码，默认 1）、`pageSize`（每页条数，默认 10）、`search`（模糊搜索关键字，默认空串）。
 - **逻辑**：
   1. `offset = (page - 1) * pageSize`。
-  2. 构造带 CTE 的 SQL：
-     - `filtered_mappings` CTE：`SELECT * FROM mappings WHERE path NOT IN (?, ?, ...)`，参数用 `banPath` 展开成 `?` 占位符。
-     - 主查询从 `filtered_mappings` 取全部列，并附加子查询 `(SELECT COUNT(*) FROM filtered_mappings) as total_count`，`ORDER BY created_at DESC`，`LIMIT ? OFFSET ?`。
-     - `.bind(...banPath, pageSize, offset)`：先展开 `banPath` 数组，再追加 `pageSize`、`offset`。
+  2. `hasSearch = search.trim() !== ''`；若为真，构造 `searchTerm = '%' + search.trim() + '%'` 用于 `LIKE`。
+  3. 构造带 CTE 的 SQL：
+     - `filtered_mappings` CTE：`SELECT * FROM mappings WHERE path NOT IN (?, ?, ...)`，参数用 `banPath` 展开成 `?` 占位符；**当 `hasSearch` 为真时追加 `AND (name LIKE ? OR path LIKE ?)`**，对条目名称（`name`）与短链名（`path`）做子串模糊匹配（`path` 为主键必有值，`name` 为可空列，对 NULL 行自动不命中）。
+     - 主查询从 `filtered_mappings` 取全部列，并附加子查询 `(SELECT COUNT(*) FROM filtered_mappings) as total_count`，`ORDER BY pinned DESC, created_at DESC`，`LIMIT ? OFFSET ?`。
+     - `.bind(...banPath, ...(hasSearch ? [searchTerm, searchTerm] : []), pageSize, offset)`：先展开 `banPath` 数组，搜索时再追加两个 `searchTerm`（与 `name`/`path` 两个 `LIKE` 占位符对应），最后追加 `pageSize`、`offset`。
   3. 若结果为空（`results.results` 为空或长度 0），返回 `{ mappings: {}, total: 0, page, pageSize, totalPages: 0 }`。
   4. 否则：`total = results.results[0].total_count`；遍历每行，以 `path` 为键构建 `mappings` 对象（含 `target/name/expiry/enabled(===1)/isWechat(===1)/qrCodeData`）。
   5. 返回 `{ mappings, total, page, pageSize, totalPages: Math.ceil(total / pageSize) }`。
@@ -437,7 +438,7 @@ if (!verifyAuthCookie(request, env)) {
 **d) 已鉴权分支（`try` 包裹）**
 
 - `api/expiring-mappings` GET → `getExpiringMappings()` → JSON。
-- `api/mappings` GET → 解析 `page` / `pageSize`（`parseInt(...) || 1/10`），调 `listMappings` → JSON。
+- `api/mappings` GET → 解析 `page` / `pageSize`（`parseInt(...) || 1/10`）与 `search`（`params.get('search') || ''` 后 `slice(0, 64)` 裁剪），调 `listMappings(page, pageSize, search)` → JSON。
 - `api/mapping`（无子路径）按 `method` 分发：
   - **GET**：取 `?path=`，缺失 → 400 `{ error: 'Missing path parameter' }`；查不到 → 404 `{ error: 'Mapping not found' }`；否则返回单条映射 JSON。
   - **POST**：`request.json()` → `createMapping(...)` → `{ success: true }`。
@@ -762,7 +763,10 @@ async function loadMappings() {
   tableBody.style.display = 'none';
   skeleton.classList.remove('hidden');   // 显示骨架屏
   try {
-    const response = await fetch(`/api/mappings?page=${currentPage}&pageSize=${pageSize}`);
+    const query = searchKeyword
+      ? `/api/mappings?page=${currentPage}&pageSize=${pageSize}&search=${encodeURIComponent(searchKeyword)}`
+      : `/api/mappings?page=${currentPage}&pageSize=${pageSize}`;
+    const response = await fetch(query);
     if (response.status === 401) { location.href='/login'; return; }
     if (!response.ok) throw new Error('加载数据失败');
     const data = await response.json();
@@ -780,6 +784,7 @@ async function loadMappings() {
 ```
 
 - **分页**：直接使用后端分页（`page`/`pageSize` 查询参数），后端返回 `totalPages`，据此禁用上/下一页按钮。
+- **模糊搜索**：管理卡片头部「短链二维码管理」旁的搜索框（`#searchInput`）输入后约 `300ms` 防抖触发；非空时 `loadMappings` 拼接 `&search=`，后端 `listMappings` 按 `name`/`path` 做 `LIKE` 过滤；搜索**仅作用于「全部」视图**，切换「即将过期/已过期」或清空搜索框时会重置 `searchKeyword` 并切回「全部」视图。
 - `allMappings = Object.entries(data.mappings)`：把后端键值对对象转数组，供 `renderCurrentPage` 遍历。
 - 骨架屏：请求期间隐藏表格、显示骨架屏；最后恢复。人为 `300ms` 延迟使骨架屏在快速网络下也可见。
 - **注意**：后端 `listMappings` 已从 `banPath` 过滤系统保留项，前端看到的列表不含保留名。

@@ -90,14 +90,17 @@ function clearAuthCookie() {
 }
 
 // 数据库操作相关函数
-async function listMappings(page = 1, pageSize = 10) {
+async function listMappings(page = 1, pageSize = 10, search = '') {
   const offset = (page - 1) * pageSize;
-  
+  const hasSearch = typeof search === 'string' && search.trim() !== '';
+  const searchTerm = hasSearch ? `%${search.trim()}%` : null;
+
   // 使用单个查询获取分页数据和总数
   const results = await DB.prepare(`
     WITH filtered_mappings AS (
       SELECT * FROM mappings 
       WHERE path NOT IN (${banPath.map(() => '?').join(',')})
+      ${hasSearch ? 'AND (name LIKE ? OR path LIKE ?)' : ''}
     )
     SELECT 
       filtered.*,
@@ -105,7 +108,12 @@ async function listMappings(page = 1, pageSize = 10) {
     FROM filtered_mappings as filtered
     ORDER BY pinned DESC, created_at DESC
     LIMIT ? OFFSET ?
-  `).bind(...banPath, pageSize, offset).all();
+  `).bind(
+    ...banPath,
+    ...(hasSearch ? [searchTerm, searchTerm] : []),
+    pageSize,
+    offset
+  ).all();
 
   if (!results.results || results.results.length === 0) {
     return {
@@ -429,8 +437,9 @@ export default {
           const params = new URLSearchParams(url.search);
           const page = parseInt(params.get('page')) || 1;
           const pageSize = parseInt(params.get('pageSize')) || 10;
+          const search = (params.get('search') || '').slice(0, 64);
 
-          const result = await listMappings(page, pageSize);
+          const result = await listMappings(page, pageSize, search);
           return new Response(JSON.stringify(result), {
             headers: { 'Content-Type': 'application/json' }
           });

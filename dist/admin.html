@@ -326,7 +326,21 @@
             <div class="card-body">
                 <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
                     <h2 class="card-title text-lg section-title">短链二维码管理</h2>
-                    <div class="join shadow-lg">
+                    <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                        <div class="join w-full sm:w-auto shadow-sm">
+                            <span class="join-item btn btn-sm btn-ghost cursor-default" aria-hidden="true">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </span>
+                            <input type="text" id="searchInput" class="join-item input input-bordered input-sm w-full sm:w-56 focus:outline-none" placeholder="搜索条目名称 / 短链名…" autocomplete="off">
+                            <button id="clearSearchBtn" class="join-item btn btn-sm btn-ghost hidden" aria-label="清空搜索">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="join shadow-lg">
                         <button id="showAllBtn" class="join-item btn btn-sm btn-primary">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -478,6 +492,7 @@
                 });
 
                 document.getElementById('showExpiringBtn').addEventListener('click', async () => {
+                    clearSearch();
                     currentPage = 1;
                     document.getElementById('showExpiringBtn').classList.add('btn-warning');
                     document.getElementById('showAllBtn').classList.remove('btn-primary');
@@ -486,6 +501,7 @@
                 });
 
                 document.getElementById('showExpiredBtn').addEventListener('click', async () => {
+                    clearSearch();
                     currentPage = 1;
                     document.getElementById('showExpiredBtn').classList.add('btn-error');
                     document.getElementById('showAllBtn').classList.remove('btn-primary');
@@ -715,7 +731,10 @@
                 tableBody.style.display = 'none';
                 skeleton.classList.remove('hidden');
                 try {
-                    const response = await fetch(`/api/mappings?page=${currentPage}&pageSize=${pageSize}`);
+                    const query = searchKeyword
+                        ? `/api/mappings?page=${currentPage}&pageSize=${pageSize}&search=${encodeURIComponent(searchKeyword)}`
+                        : `/api/mappings?page=${currentPage}&pageSize=${pageSize}`;
+                    const response = await fetch(query);
                     if (response.status === 401) { window.location.href = '/login'; return; }
                     if (!response.ok) throw new Error('加载数据失败');
                     const data = await response.json();
@@ -1088,6 +1107,42 @@
             let allMappings = [];
             let currentPage = 1;
             let pageSize = 10;
+            let searchKeyword = '';
+
+            function clearSearch() {
+                searchKeyword = '';
+                const input = document.getElementById('searchInput');
+                const clearBtn = document.getElementById('clearSearchBtn');
+                if (input) input.value = '';
+                if (clearBtn) clearBtn.classList.add('hidden');
+            }
+
+            // 搜索框：实时输入（防抖 300ms），仅作用于「全部」列表；输入即切回「全部」视图
+            let searchTimer = null;
+            const searchInput = document.getElementById('searchInput');
+            const clearSearchBtn = document.getElementById('clearSearchBtn');
+            function activateAllView() {
+                document.getElementById('showAllBtn').classList.add('btn-primary');
+                document.getElementById('showExpiringBtn').classList.remove('btn-warning');
+                document.getElementById('showExpiredBtn').classList.remove('btn-error');
+            }
+            searchInput.addEventListener('input', (e) => {
+                const value = e.target.value.trim();
+                clearSearchBtn.classList.toggle('hidden', value === '');
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(async () => {
+                    searchKeyword = value;
+                    currentPage = 1;
+                    activateAllView();
+                    await loadMappings();
+                }, 300);
+            });
+            clearSearchBtn.addEventListener('click', async () => {
+                clearSearch();
+                currentPage = 1;
+                activateAllView();
+                await loadMappings();
+            });
 
             document.getElementById('nextPage').addEventListener('click', async () => {
                 const expiringBtn = document.getElementById('showExpiringBtn');
