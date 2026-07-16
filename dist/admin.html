@@ -324,38 +324,39 @@
         <!-- 短链管理 -->
         <div class="card bg-base-100 shadow-xl">
             <div class="card-body">
-                <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-                    <h2 class="card-title text-lg section-title">短链二维码管理</h2>
-                    <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-                        <div class="join w-full sm:w-auto shadow-sm">
-                            <span class="join-item btn btn-sm btn-ghost cursor-default" aria-hidden="true">
+                <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-4">
+                    <h2 class="card-title text-lg section-title shrink-0 whitespace-nowrap">短链二维码管理</h2>
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-end">
+                        <div class="join shadow-sm w-full sm:w-auto">
+                            <span class="join-item btn btn-sm btn-ghost cursor-default px-2" aria-hidden="true">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
                             </span>
                             <input type="text" id="searchInput" class="join-item input input-bordered input-sm w-full sm:w-56 focus:outline-none" placeholder="搜索条目名称 / 短链名…" autocomplete="off">
-                            <button id="clearSearchBtn" class="join-item btn btn-sm btn-ghost hidden" aria-label="清空搜索">
+                            <button id="clearSearchBtn" class="join-item btn btn-sm btn-ghost hidden px-2" aria-label="清空搜索">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
-                        <div class="join shadow-lg">
-                        <button id="showAllBtn" class="join-item btn btn-sm btn-primary">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                            </svg>全部
-                        </button>
-                        <button id="showExpiringBtn" class="join-item btn btn-sm">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>即将过期
-                        </button>
-                        <button id="showExpiredBtn" class="join-item btn btn-sm">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>已过期
-                        </button>
+                        <div class="join shadow-lg shrink-0">
+                            <button id="showAllBtn" class="join-item btn btn-sm btn-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                                </svg>全部
+                            </button>
+                            <button id="showExpiringBtn" class="join-item btn btn-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>即将过期
+                            </button>
+                            <button id="showExpiredBtn" class="join-item btn btn-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>已过期
+                            </button>
+                        </div>
                     </div>
                 </div>
 
