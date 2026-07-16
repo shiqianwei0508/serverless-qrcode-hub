@@ -12,6 +12,9 @@
 4. [前端 admin.html 详解](#4-前端-adminhtml-详解)
 5. [配置与部署](#5-配置与部署)
 6. [安全与优化建议](#6-安全与优化建议)
+   - [6.8 架构决策：为什么不用框架](#68-架构决策为什么不用框架)
+   - [6.9 时间戳存储改造记录](#69-时间戳存储改造记录)
+
 
 ---
 
@@ -1114,11 +1117,67 @@ CREATE INDEX IF NOT EXISTS idx_enabled_expiry ON mappings(enabled, expiry);
 
 - **标题竖排/窄列问题**（提交 `0d39fda` 修复）：原「短链二维码管理」卡片头部采用 `flex md:flex-row` 布局，在 768–1279px 区间进入横排，但 `<h2>` 标题缺少 `shrink-0` / `whitespace-nowrap` 保护，浏览器对连续中文按"每字可断"处理，把标题列压到约 1em 宽，导致标题竖排、一行一字。修复方式：① 将横排断点从 `md`(768px) 提高到 `xl`(1280px)，使中屏下标题独占一行；② 标题加 `shrink-0 whitespace-nowrap`、筛选按钮组加 `shrink-0` 防止被压缩；③ 内层搜索框/按钮组改为 `flex-col sm:flex-row sm:items-center sm:justify-end` 右对齐堆叠；④ 清除上次编辑时多出的一个冗余 `</div>`，恢复 DOM 闭合平衡。
 
-### 6.8 时间戳存储改造记录
+### 6.8 架构决策：为什么不用框架
+
+**结论：当前阶段不需要引入 React/Vue 等前端框架。**
+
+#### 项目规模评估
+
+| 维度 | 数据 |
+|------|------|
+| 后端 | `index.js` ~808 行，单文件 Worker |
+| 前端 admin | `admin.html` ~1288 行（HTML + 内联 JS） |
+| 前端 login | `login.html` ~142 行 |
+| 共享代码 | `common.js` 87 行 + `theme.css` 254 行 |
+| 页面数 | 2 个（登录 + 管理后台） |
+| 构建步骤 | **零** — Tailwind 运行时 CDN 加载，静态文件直接服务 |
+
+#### 保持现状的理由
+
+1. **投入产出比不划算**：引入框架意味着增加 `npm install` + Vite/Webpack 构建链路、每次部署多一步 `npm run build`、框架运行时体积（React ~40KB gzipped，Vue ~33KB），而实际获取的组件化和状态管理红利对 2 页单用户管理后台非常有限。
+
+2. **当前架构足够清晰**：
+   - 模态框（详情/编辑/删除确认/二维码预览）逻辑独立
+   - 时间戳转换抽了 3 个工具函数
+   - 主题/Toast 抽到了 `common.js` 共享
+   - 卡片渲染走 `createMappingCard` 工厂函数
+   - 卡片网格布局响应式完整（1/2/3 列）
+
+3. **框架适合什么场景（当前不沾）**：
+   - 5+ 页面、复杂路由
+   - 多人协作需要统一组件规范
+   - 复杂表单（多步向导、联动验证、动态字段）
+   - 实时数据（WebSocket 推送、状态同步）
+   - 需要 SSR/SSG
+
+#### 轻量渐进式增强方案（可选）
+
+如果未来想改善代码组织而不引入构建工具，可考虑 **Alpine.js**（~15KB gzipped，一行 CDN 引入，零构建步骤）：
+
+- `x-data` 声明式状态（替代全局变量拼凑）
+- `x-show` / `x-if` 条件渲染（替代手动 `classList.toggle`）
+- `x-model` 双向绑定（减少 `getElementById` 地狱）
+- 与 Tailwind + DaisyUI 天然兼容，可渐进式迁移
+
+#### 引入框架的信号
+
+当以下任一条件满足时再考虑上框架：
+
+| 信号 | 说明 |
+|------|------|
+| 前端 JS 总量 > 3000 行 | 复杂度临界点，vanilla JS 维护成本开始陡增 |
+| 管理页面 ≥ 3 个 | 路由/导航成为刚需 |
+| 多人协作维护 | 需要统一的组件规范和类型约束 |
+
+在此之前，**保持 vanilla JS + Tailwind + DaisyUI，把精力花在功能迭代上**。
+
+---
+
+### 6.9 时间戳存储改造记录
 
 - **expiry / created_at 改为毫秒时间戳存储**：后端 `index.js` 中 `expiry` 和 `created_at` 由日期字符串（`YYYY-MM-DD` / `CURRENT_TIMESTAMP`）改为毫秒时间戳。`created_at` 去掉 `DEFAULT CURRENT_TIMESTAMP`，改为 JS 层 `Date.now()` 写入。SQL 比较从 `datetime(expiry) < datetime(?)` 改为 `CAST(expiry AS INTEGER) < ?`。`getExpiringMappings` 时间窗口也改为 `Date.now()` 和 `now + 3天` 的数值比较。`initDatabase()` 新增自动数据迁移：检测旧格式日期并通过 `GLOB` 模式识别，逐行转为 `new Date(str + 'T00:00:00Z').getTime()` 毫秒时间戳。
 - **前端时间格式 `input[type=date]` ↔ 毫秒时间戳互转**：新增 `dateToTimestamp()` / `timestampToDateStr()` / `timestampToInputValue()` 三工具函数。创建/编辑时将 date input 值转时间戳发送，展示时用 `toLocaleDateString()` 按浏览器本地时区自动渲染，实现跨时区适配。
 
 ---
 
-> 文档结束。所有说明基于 `489b3a9 docs: 更新 CODE_DESIGN.md 同步搜索框与 UI 修复` 快照时的源码核实（时间戳存储改造的变更尚未提交）。
+> 文档结束。最后更新：新增 6.8 架构决策章节，记录保持 vanilla JS 的技术选型理由。
