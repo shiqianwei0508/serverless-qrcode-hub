@@ -88,7 +88,12 @@
                 </div>
                 <div>
                     <label class="label pb-1"><span class="label-text text-base-content/60 text-xs">目标 URL</span></label>
-                    <p id="detailTarget" class="text-sm break-all text-base-content/80 bg-base-200 rounded-lg p-3"></p>
+                    <div class="relative">
+                        <p id="detailTarget" class="text-sm break-all text-base-content/80 bg-base-200 rounded-lg p-3 pr-10 cursor-pointer" title="点击复制"></p>
+                        <button type="button" id="copyTargetBtn" class="btn btn-ghost btn-xs absolute right-1 top-1/2 -translate-y-1/2" title="复制目标 URL" aria-label="复制目标 URL">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                        </button>
+                    </div>
                 </div>
                 <div>
                     <label class="label pb-1"><span class="label-text text-base-content/60 text-xs">有效日期</span></label>
@@ -103,7 +108,12 @@
                 <div id="qr-container" class="flex justify-center mb-3"></div>
                 <div class="mb-3">
                     <label class="label pb-1"><span class="label-text text-base-content/60 text-xs">链接地址</span></label>
-                    <input type="text" id="qr-url" class="input input-bordered w-full" readonly>
+                    <div class="join w-full">
+                        <input type="text" id="qr-url" class="input input-bordered w-full join-item" readonly>
+                        <button type="button" id="copyUrlBtn" class="btn btn-outline join-item" title="复制链接地址" aria-label="复制链接地址">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
                     <label class="label cursor-pointer gap-2 shrink-0">
@@ -928,6 +938,19 @@
                 return card;
             }
 
+            function copyTextToClipboard(text, successMsg) {
+                if (!text || text === '-') {
+                    showAlert('没有可复制的内容', 'warning');
+                    return;
+                }
+                navigator.clipboard.writeText(text)
+                    .then(() => showAlert(successMsg || '复制成功', 'success'))
+                    .catch(err => {
+                        console.error('复制失败:', err);
+                        showAlert('复制失败，请手动复制');
+                    });
+            }
+
             function showDetailModal(path, mapping) {
                 document.getElementById('detailName').textContent = mapping.name || '-';
                 document.getElementById('detailPath').textContent = path;
@@ -1005,6 +1028,16 @@
                     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').replace('Z', '');
                     currentQRCode.download({ name: `qr-${path}-${timestamp}`, extension: 'png' });
                 };
+
+                // 复制按钮：目标 URL 与 链接地址
+                const copyTargetBtn = document.getElementById('copyTargetBtn');
+                const detailTargetEl = document.getElementById('detailTarget');
+                const copyTarget = () => copyTextToClipboard(detailTargetEl.textContent, '目标 URL 已复制');
+                copyTargetBtn.onclick = copyTarget;
+                detailTargetEl.onclick = copyTarget;
+
+                const copyUrlBtn = document.getElementById('copyUrlBtn');
+                copyUrlBtn.onclick = () => copyTextToClipboard(urlInput.value, '链接地址已复制');
 
                 document.getElementById('detail-modal').showModal();
             }

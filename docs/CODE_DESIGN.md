@@ -612,7 +612,7 @@ const banPath = [ 'login','admin','__total_count','admin.html','login.html','dai
 ### 4.3 页面结构（HTML）
 
 - 两个 `<dialog>` 模态：
-  - `#qr-modal`：二维码预览（含 `#qr-container`、`#qr-url` 只读、`#qr-show-logo` 复选、`#qr-dots-style` 下拉、`#qr-download` 下载按钮）。
+  - `#detail-modal`：短链详情（只读，合并二维码预览）。含条目信息（`#detailName`/`#detailPath`/`#detailTarget`/`#detailExpiry`、状态 badge `#detailEnabled`/`#detailWechat`/`#detailPinned`）、二维码预览（`#qr-container`/`#qr-url` 只读/`#qr-show-logo` 复选/`#qr-dots-style` 下拉/`#qr-download` 下载按钮）、复制按钮 `#copyTargetBtn`（复制目标 URL）与 `#copyUrlBtn`（复制链接地址）、编辑按钮 `#detailEditBtn`。
   - `#delete-confirm-modal`：删除确认（`#confirm-delete-btn`）。
 - `#alertContainer`：浮动提示容器（顶部居中）。
 - 隐藏字段 `#qrCodeData`：保存当前上传二维码的 DataURL。
@@ -967,6 +967,31 @@ async function loadExpiringMappings(type) {
 ### 4.23 `updateMapping(mapping)` — 旧式更新（已移除）
 
 - 原 4.23 的旧式整页刷新更新函数已于 UI 优化时删除（与 `saveEdit` 重复且无调用方）。行内编辑统一走 `saveEdit`（见 [6.5](#65-前端潜在问题)）。
+
+### 4.24 `showDetailModal(path, mapping)` — 详情弹窗
+
+- 表格行"详情"按钮（`btn-detail`）→ `showDetailModal(path, mapping)`。
+- 填充只读字段：`detailName`/`detailPath`/`detailTarget`/`detailExpiry`（`timestampToDateStr`）、状态 badge（`detailEnabled`/`detailWechat`/`detailPinned`）。
+- 内嵌二维码预览（`#qr-container`/`#qr-url`/`#qr-show-logo`/`#qr-dots-style`/`#qr-download`），逻辑同原 4.15 的预览/下载（`getQRConfig` → `QRCodeStyling.append` → `updateQRCode` 过渡 → 下载文件名 `qr-<path>-<时间戳>`）。`urlInput.value = window.location.origin + '/' + path`。
+- 编辑按钮 `#detailEditBtn` → 关闭详情并 `openEditModal`（组装 `originalData`）。
+- **复制功能**：
+  - `#copyTargetBtn` 与 `#detailTarget`（整段可点击）→ 复制 `mapping.target`，提示"目标 URL 已复制"。
+  - `#copyUrlBtn` → 复制 `urlInput.value`，提示"链接地址已复制"。
+  - 二者均经 `copyTextToClipboard()`（见 4.25），空值（`-`）提示"没有可复制的内容"。
+
+### 4.25 `copyTextToClipboard(text, successMsg)`
+
+```js
+function copyTextToClipboard(text, successMsg) {
+  if (!text || text === '-') { showAlert('没有可复制的内容', 'warning'); return; }
+  navigator.clipboard.writeText(text)
+    .then(() => showAlert(successMsg || '复制成功', 'success'))
+    .catch(err => { console.error('复制失败:', err); showAlert('复制失败，请手动复制'); });
+}
+```
+
+- 通用复制辅助：复用于详情弹窗的"目标 URL"与"链接地址"复制（与 4.9.4 `copyDecodedText` 同样依赖 `navigator.clipboard`，需 HTTPS/localhost 安全上下文）。
+- 空值保护：目标 URL 为 `-`（无数据）时不执行复制并给出警告提示。
 
 ---
 
