@@ -1,0 +1,17 @@
+name = "serverless-qrcode-hub-docker"
+main = "index.js"
+compatibility_date = "2025-03-10"
+
+# 通过环境变量注入管理员密码（容器启动时由 APP_PASSWORD 提供，默认 test1234）
+[vars]
+PASSWORD = "${APP_PASSWORD}"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "qrcode_hub"
+# 固定 id 保证本地 SQLite 文件路径稳定，跨容器重启持久一致
+database_id = "060f6d75-397d-4d39-b6b3-339b9224d6d7"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
