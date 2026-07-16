@@ -108,6 +108,23 @@
    ![](./images/14.png)
    ![](./images/15.png)
 
+## 自动部署（Cloudflare Workers Builds）
+
+本项目配置了 Cloudflare Workers Builds，推送代码到 GitHub 后会自动从仓库拉取并构建部署，无需手动操作。以下为一次真实构建日志中提取的关键信息：
+
+- **构建环境**：`pnpm@10.11.1`、`nodejs@22.16.0`
+- **依赖安装**：`pnpm install --frozen-lockfile`（依赖见 `pnpm-lock.yaml`，锁文件需保持最新）
+- **部署命令**：`npx wrangler deploy`（当前使用 `wrangler 4.0.0`）
+- **数据库绑定**：D1 数据库 `qrcode_hub`（配置见 `wrangler.toml` 的 `d1_databases`）
+- **定时任务**：`schedule: 0 2 */1 * *`（每 2 天 02:00 触发，用于过期数据自动清理）
+- **静态资源**：管理后台 `dist/admin.html` 通过 `assets` 配置随 Worker 一并发布
+
+> ⚠️ **Worker 名称需与 CI 期望一致**：CI 系统按 Worker 名称匹配部署目标。若 `wrangler.toml` 中的 `name` 与 CI 期望不一致，构建日志会出现类似警告并被 CI 覆盖部署：
+> ```
+> [WARNING] Failed to match Worker name. Your config file is using the Worker name "xxx", but the CI system expected "yyy". Overriding using the CI provided Worker name.
+> ```
+> 本仓库已将 `wrangler.toml` 的 `name` 设为 `serverless-qrcode-hub-dev`，与 CI 期望一致（部署地址：`https://serverless-qrcode-hub-dev.sqwei2012.workers.dev`）。你 Fork 后请根据自己在 Cloudflare 创建的 Worker 名称修改此 `name`，以避免该警告。
+
 ## TODO
 
 - [ ] 实现定时检查过期短链功能
