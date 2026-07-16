@@ -20,7 +20,7 @@ async function initDatabase() {
       name TEXT,
       expiry TEXT,
       enabled INTEGER DEFAULT 1,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      created_at TEXT
     )
   `).run();
 
@@ -65,6 +65,51 @@ async function initDatabase() {
   await DB.prepare(`
     CREATE INDEX IF NOT EXISTS idx_enabled_expiry ON mappings(enabled, expiry)
   `).run();
+
+  // 数据迁移：将旧格式日期字符串转为毫秒时间戳
+  const oldFormatCount = await DB.prepare(`
+    SELECT COUNT(*) as cnt FROM mappings 
+    WHERE expiry IS NOT NULL AND expiry GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+  `).first();
+  if (oldFormatCount && oldFormatCount.cnt > 0) {
+    console.log(`Migrating ${oldFormatCount.cnt} mappings from date string to timestamp...`);
+    const needCreatedAtMigration = await DB.prepare(`
+      SELECT COUNT(*) as cnt FROM mappings
+      WHERE created_at IS NOT NULL AND created_at GLOB '[0-9][0-9][0-9][0-9]-*'
+    `).first();
+    let migrated = 0;
+    if (needCreatedAtMigration && needCreatedAtMigration.cnt > 0) {
+      // expiry 和 created_at 都是旧格式：逐行迁移
+      const rows = await DB.prepare(`
+        SELECT path, expiry, created_at FROM mappings
+        WHERE expiry IS NOT NULL AND expiry GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+      `).all();
+      for (const row of rows.results) {
+        const newExpiry = new Date(row.expiry + 'T00:00:00Z').getTime().toString();
+        const newCreatedAt = /^\d{13}$/.test(row.created_at)
+          ? row.created_at
+          : new Date(row.created_at.replace(' ', 'T') + 'Z').getTime().toString();
+        await DB.prepare(`
+          UPDATE mappings SET expiry = ?, created_at = ? WHERE path = ?
+        `).bind(newExpiry, newCreatedAt, row.path).run();
+        migrated++;
+      }
+    } else {
+      // 仅 expiry 是旧格式（created_at 已迁移）：批量更新 expiry
+      const rows = await DB.prepare(`
+        SELECT path, expiry FROM mappings
+        WHERE expiry IS NOT NULL AND expiry GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+      `).all();
+      for (const row of rows.results) {
+        const newExpiry = new Date(row.expiry + 'T00:00:00Z').getTime().toString();
+        await DB.prepare(`
+          UPDATE mappings SET expiry = ? WHERE path = ?
+        `).bind(newExpiry, row.path).run();
+        migrated++;
+      }
+    }
+    console.log(`Migration complete: ${migrated} rows`);
+  }
 }
 
 // Cookie 相关函数
@@ -132,7 +177,7 @@ async function listMappings(page = 1, pageSize = 10, search = '') {
     mappings[row.path] = {
       target: row.target,
       name: row.name,
-      expiry: row.expiry,
+      expiry: row.expiry ? Number(row.expiry) : null,
       enabled: row.enabled === 1,
       isWechat: row.isWechat === 1,
       qrCodeData: row.qrCodeData,
@@ -159,7 +204,7 @@ async function createMapping(path, target, name, expiry, enabled = true, isWecha
     throw new Error('该短链名已被系统保留，请使用其他名称');
   }
 
-  if (expiry && isNaN(Date.parse(expiry))) {
+  if (expiry && isNaN(Number(expiry))) {
     throw new Error('Invalid expiry date');
   }
 
@@ -169,8 +214,8 @@ async function createMapping(path, target, name, expiry, enabled = true, isWecha
   }
 
   await DB.prepare(`
-    INSERT INTO mappings (path, target, name, expiry, enabled, isWechat, qrCodeData)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO mappings (path, target, name, expiry, enabled, isWechat, qrCodeData, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     path,
     target,
@@ -178,7 +223,8 @@ async function createMapping(path, target, name, expiry, enabled = true, isWecha
     expiry || null,
     enabled ? 1 : 0,
     isWechat ? 1 : 0,
-    qrCodeData
+    qrCodeData,
+    Date.now().toString()
   ).run();
 }
 
@@ -217,7 +263,7 @@ async function updateMapping(originalPath, newPath, target, name, expiry, enable
     throw new Error('该短链名已被系统保留，请使用其他名称');
   }
 
-  if (expiry && isNaN(Date.parse(expiry))) {
+  if (expiry && isNaN(Number(expiry))) {
     throw new Error('Invalid expiry date');
   }
 
@@ -258,21 +304,10 @@ async function updateMapping(originalPath, newPath, target, name, expiry, enable
 }
 
 async function getExpiringMappings() {
-  // 获取今天的日期（设置为今天的23:59:59）
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
-  const now = today.toISOString();
-  
-  // 获取今天的开始时间（00:00:00）
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const dayStart = todayStart.toISOString();
-  
-  // 修改为3天后的23:59:59
-  const threeDaysFromNow = new Date(todayStart);
-  threeDaysFromNow.setDate(todayStart.getDate() + 3);
-  threeDaysFromNow.setHours(23, 59, 59, 999);
-  const threeDaysLater = threeDaysFromNow.toISOString();
+  // 今天本地 0 点的时间戳（毫秒）
+  const now = Date.now();
+  // 3天后的时间戳
+  const threeDaysLater = now + 3 * 24 * 60 * 60 * 1000;
 
   // 使用单个查询获取所有过期和即将过期的映射
   const results = await DB.prepare(`
@@ -280,17 +315,17 @@ async function getExpiringMappings() {
       SELECT 
         path, name, target, expiry, enabled, isWechat, qrCodeData,
         CASE 
-          WHEN datetime(expiry) < datetime(?) THEN 'expired'
-          WHEN datetime(expiry) <= datetime(?) THEN 'expiring'
+          WHEN CAST(expiry AS INTEGER) < ? THEN 'expired'
+          WHEN CAST(expiry AS INTEGER) <= ? THEN 'expiring'
         END as status
       FROM mappings 
       WHERE expiry IS NOT NULL 
-        AND datetime(expiry) <= datetime(?) 
+        AND CAST(expiry AS INTEGER) <= ? 
         AND enabled = 1
     )
     SELECT * FROM categorized_mappings
-    ORDER BY expiry ASC
-  `).bind(dayStart, threeDaysLater, threeDaysLater).all();
+    ORDER BY CAST(expiry AS INTEGER) ASC
+  `).bind(now, threeDaysLater, threeDaysLater).all();
 
   const mappings = {
     expiring: [],
@@ -302,7 +337,7 @@ async function getExpiringMappings() {
       path: row.path,
       name: row.name,
       target: row.target,
-      expiry: row.expiry,
+      expiry: row.expiry ? Number(row.expiry) : null,
       enabled: row.enabled === 1,
       isWechat: row.isWechat === 1,
       qrCodeData: row.qrCodeData
@@ -320,7 +355,7 @@ async function getExpiringMappings() {
 
 // 添加新的批量清理过期映射的函数
 async function cleanupExpiredMappings(batchSize = 100) {
-  const now = new Date().toISOString();
+  const now = Date.now().toString();
   
   while (true) {
     // 获取一批过期的映射
@@ -555,11 +590,9 @@ export default {
             return new Response('Not Found', { status: 404 });
           }
 
-          // 检查是否过期 - 使用当天23:59:59作为失效判断时间
+          // 检查是否过期
           if (mapping.expiry) {
-            const today = new Date();
-            today.setHours(23, 59, 59, 999);
-            if (new Date(mapping.expiry) < today) {
+            if (Number(mapping.expiry) < Date.now()) {
               const expiredHtml = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -631,7 +664,7 @@ export default {
             </svg>
         </div>
         <h1 class="title">${mapping.name ? mapping.name + ' 已过期' : '链接已过期'}</h1>
-        <p class="message">过期时间：${new Date(mapping.expiry).toLocaleDateString()}</p>
+        <p class="message">过期时间：${new Date(Number(mapping.expiry)).toLocaleDateString()}</p>
         <p class="footer">如需访问，请联系管理员更新链接</p>
     </div>
 </body>

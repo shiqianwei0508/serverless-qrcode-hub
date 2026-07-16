@@ -726,6 +726,28 @@
                 }, 3000);
             }
 
+            /* ── 时间戳 ↔ 本地日期 ── */
+            function dateToTimestamp(dateStr) {
+                // 把 date input 值（本地 YYYY-MM-DD）转成当天 0 点的毫秒时间戳
+                return dateStr ? new Date(dateStr + 'T00:00:00').getTime() : null;
+            }
+
+            function timestampToDateStr(ts) {
+                // 时间戳 → 本地日期字符串（自动适配浏览器时区）
+                return ts ? new Date(Number(ts)).toLocaleDateString() : '永久有效';
+            }
+
+            function timestampToInputValue(ts) {
+                // 时间戳 → date input 值（本地 YYYY-MM-DD）
+                if (!ts) return '';
+                const d = new Date(Number(ts));
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            }
+            /* ────────────────────────── */
+
             async function loadMappings() {
                 const tableBody = document.getElementById('mappingsTableBody');
                 const skeleton = document.getElementById('skeleton');
@@ -771,7 +793,7 @@
                 const name = document.getElementById('newName').value.trim();
                 const path = document.getElementById('newPath').value.trim();
                 const target = document.getElementById('newTarget').value.trim();
-                const expiry = document.getElementById('newExpiry').value;
+                const expiry = dateToTimestamp(document.getElementById('newExpiry').value);
                 const enabled = document.getElementById('newEnabled').checked;
                 const isWechat = document.getElementById('newIsWechat').checked;
                 const qrCodeData = document.getElementById('qrCodeData').value;
@@ -921,7 +943,7 @@
                 const row = document.createElement('tr');
                 row.dataset.originalData = JSON.stringify({
                     name: mapping.name || '', path: path, target: mapping.target,
-                    expiry: mapping.expiry || '', enabled: mapping.enabled,
+                    expiry: mapping.expiry || null, enabled: mapping.enabled,
                     isWechat: mapping.isWechat, qrCodeData: mapping.qrCodeData,
                     pinned: mapping.pinned
                 });
@@ -930,7 +952,7 @@
                     { text: mapping.name || '-', data: mapping.name || '-' },
                     { text: path, data: path },
                     { text: mapping.target, data: mapping.target },
-                    { text: mapping.expiry || '永久有效', data: mapping.expiry || '' }
+                    { text: timestampToDateStr(mapping.expiry), data: mapping.expiry || '' }
                 ];
 
                 cellsData.forEach(({ text, data }, index) => {
@@ -986,7 +1008,7 @@
                         cells[0].innerHTML = `<input type="text" class="input input-bordered input-sm w-full" value="${mappingData.name || ''}">`;
                         cells[1].innerHTML = `<input type="text" class="input input-bordered input-sm w-full" value="${mappingData.path}">`;
                         cells[2].innerHTML = `<textarea class="textarea textarea-bordered textarea-sm w-full h-24" style="resize:none; word-break:break-all;">${mappingData.target}</textarea>`;
-                        cells[3].innerHTML = `<input type="date" class="input input-bordered input-sm w-full" value="${mappingData.expiry || ''}">`;
+                        cells[3].innerHTML = `<input type="date" class="input input-bordered input-sm w-full" value="${timestampToInputValue(mappingData.expiry)}">`;
                         cells[4].innerHTML = `
                             <div class="flex flex-col gap-2">
                                 <label class="cursor-pointer label justify-start gap-2">
@@ -1026,7 +1048,7 @@
                 const newName = cells[0].querySelector('input').value;
                 const newPath = cells[1].querySelector('input').value;
                 const newTarget = cells[2].querySelector('textarea').value;
-                const newExpiry = cells[3].querySelector('input').value;
+                const newExpiry = dateToTimestamp(cells[3].querySelector('input').value);
                 const enabledToggle = cells[4].querySelector('input[type="checkbox"]');
                 const isWechatToggle = cells[4].querySelectorAll('input[type="checkbox"]')[1];
                 const newEnabled = enabledToggle.checked;
@@ -1081,7 +1103,7 @@
                 cells[0].textContent = originalData.name || '-';
                 cells[1].textContent = originalData.path;
                 cells[2].textContent = originalData.target;
-                cells[3].textContent = originalData.expiry || '永久有效';
+                cells[3].textContent = timestampToDateStr(originalData.expiry);
                 cells[4].innerHTML = `
                     <div class="flex items-center gap-2">
                         <span class="badge ${originalData.enabled ? 'badge-success' : 'badge-error'}">${originalData.enabled ? '启用' : '禁用'}</span>
@@ -1238,13 +1260,10 @@
                     const response = await fetch(`/api/expiring-mappings?page=${currentPage}&pageSize=${pageSize}`);
                     if (response.status === 401) { window.location.href = '/login'; return; }
                     const data = await response.json();
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
+                    const now = Date.now();
                     const mappingsArray = data[type];
                     mappingsArray.forEach(mapping => {
-                        const expiryDate = new Date(mapping.expiry);
-                        expiryDate.setHours(0, 0, 0, 0);
-                        mapping.isExpired = expiryDate < today;
+                        mapping.isExpired = mapping.expiry ? Number(mapping.expiry) < now : false;
                     });
                     const filteredMappings = type === 'expired'
                         ? mappingsArray.filter(m => m.isExpired)
