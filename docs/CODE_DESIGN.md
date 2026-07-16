@@ -57,6 +57,8 @@ serverless-qrcode-hub/
 │   ├── admin.html      # 管理后台
 │   ├── daisyui@5.css
 │   ├── tailwindcss@4.js
+│   ├── theme.css        # 专业商务风设计系统（覆盖 DaisyUI 主题变量 + 统一组件样式）
+│   ├── common.js        # 登录/后台共享：首屏主题、主题切换、统一 Toast/Alert
 │   ├── qr-code-styling.js
 │   ├── zxing.js
 │   ├── wechat.svg
@@ -462,8 +464,8 @@ if (path) {
 - **查询**：`WHERE path = ?`。`path` 来自 URL，`banPath` 中的保留名（如 `login.html`）实际由 Assets 优先服务，不会落入此分支。
 - **禁用**：`!mapping.enabled` → 404（伪装成不存在，避免暴露保留/禁用项）。
 - **过期判断**：以"今天 23:59:59"为基准，`expiry` 早于该时刻即视为过期。注意：这里**不使用** `getExpiringMappings` 的 0 点基准，而是用 23:59:59——意味着"今天内过期"的链接当天仍可访问，到当天结束才失效（宽松过期语义）。
-- **过期页**：返回硬编码 HTML（`text/html;charset=UTF-8`，`Cache-Control: no-store`，**状态码 404**）。内容含条目名、过期日期（`toLocaleDateString`）、"如需访问，请联系管理员更新链接"。支持深浅色（`@media (prefers-color-scheme: dark)`）。
-- **微信活码页**：当 `isWechat===1` 且有 `qrCodeData` 时返回硬编码 HTML，内联 `<img class="qr-code" src="${qrCodeData}">`（DataURL 直接渲染），配 `wechat.svg` 图标与"请长按识别下方二维码"提示。`Cache-Control: no-store`。**关键点**：微信活码通过展示原始二维码图片让访客长按识别，区别于普通 302 跳转。
+- **过期页**：返回硬编码 HTML（`text/html;charset=UTF-8`，`Cache-Control: no-store`，**状态码 404**）。内容含条目名、过期日期（`toLocaleDateString`）、"如需访问，请联系管理员更新链接"。采用专业商务风（居中卡片 + 时钟图标 + 企业蓝 `--brand:#2563EB`，通过 CSS 变量 + `@media (prefers-color-scheme: dark)` 自适应深浅色，与后台设计系统一致）。
+- **微信活码页**：当 `isWechat===1` 且有 `qrCodeData` 时返回硬编码 HTML，内联 `<img class="qr-code" src="${qrCodeData}">`（DataURL 直接渲染，外裹白色圆角 `qr-wrap` 容器便于长按），配 `wechat.svg` 图标与"请长按识别下方二维码"提示。`Cache-Control: no-store`。采用与过期页一致的专业商务风（企业蓝 `--brand` + 深浅色自适应）。**关键点**：微信活码通过展示原始二维码图片让访客长按识别，区别于普通 302 跳转。
 - **普通跳转**：`Response.redirect(mapping.target, 302)`。
 
 ### 2.6 `scheduled(controller, env, ctx)` — 定时任务
@@ -488,39 +490,39 @@ async scheduled(controller, env, ctx) {
 
 ## 3. 前端 login.html 详解
 
-`login.html` 是纯静态登录页，依赖 `/daisyui@5.css`（样式）与 `/tailwindcss@4.js`（Tailwind 运行时）。所有脚本内联。
+`login.html` 是纯静态登录页，依赖 `/daisyui@5.css`（样式）与 `/tailwindcss@4.js`（Tailwind 运行时）。主题与提示逻辑的**首屏脚本、主题切换、Toast/Alert 均已抽到 `dist/common.js`**（由 `<head>` 内 `<script src="/common.js">` 同步引入），两页共享、避免重复。视觉层由 `dist/theme.css` 承载统一设计令牌（见下文）。
 
-### 3.1 首屏主题脚本（`<head>` 内）
+### 3.1 首屏主题脚本（`common.js`）
 
 ```js
 (function () {
   const savedTheme = localStorage.getItem('theme');
-  if (savedTheme === 'system') {
-    // 跟随系统：matchMedia('(prefers-color-scheme: dark)') 决定 dark/light
-  } else if (savedTheme) {
-    document.documentElement.setAttribute('data-theme', savedTheme);
+  const mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+  if (savedTheme === 'system' || !savedTheme) {
+    if (!savedTheme) localStorage.setItem('theme', 'system');
+    document.documentElement.setAttribute('data-theme', mq && mq.matches ? 'dark' : 'light');
   } else {
-    localStorage.setItem('theme', 'system');  // 默认 system
-    // 按系统偏好设置
+    document.documentElement.setAttribute('data-theme', savedTheme);
   }
 })();
 ```
 
 - **目的**：在 HTML 渲染前（避免闪烁）根据 `localStorage.theme` 设置 `<html data-theme>`。
 - **分支**：`system` → 跟随系统；已存具体值 → 直接用；无 → 默认写入 `system` 并跟随系统。
-- 与 admin.html 的首屏脚本**逻辑完全一致**（见 4.1）。
+- 逻辑与 admin.html 完全一致，现统一由 `common.js` 提供（见 4.1）。
 
-### 3.2 主题切换函数（`toggleTheme` / `updateThemeIcon`）
+### 3.2 主题切换函数（`common.js` 内 `toggleTheme` / `updateThemeIcon`）
 
 - `toggleTheme()`：读取当前 `theme`（`system`/`light`/`dark`），按 `system → light → dark → system` 循环；写回 `localStorage`；`system` 时按 `matchMedia` 决定实际 `data-theme`，否则直接用新值；最后 `updateThemeIcon(newTheme)`。
-- `updateThemeIcon(theme)`：通过 `document.querySelector('#themeToggleBtn path').setAttribute('d', ...)` 切换 SVG 路径——`system` 用显示器图标、`dark` 用月亮、`light` 用太阳。
+- `updateThemeIcon(theme)`：通过 `#themeToggleBtn path` 的 `setAttribute('d', ...)` 切换 SVG 路径——`system` 用显示器图标、`dark` 用月亮、`light` 用太阳。
 - **系统变化监听**：`window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ...)`：仅当 `theme==='system'` 时实时跟随系统切换 `data-theme`。
-- **初始化**：`DOMContentLoaded` 时 `updateThemeIcon(currentTheme)` 并绑定按钮 `click → toggleTheme`。
+- **初始化**：`DOMContentLoaded` 时 `initThemeToggle()` 绑定按钮 `click → toggleTheme` 并初始化图标（在 `common.js` 末尾统一注册，两页无需各自重复）。
 
 ### 3.3 登录 UI 结构
 
+- `<body class="auth-page">`：由 `theme.css` 提供浅/深色渐变背景（双 radial 光晕 + 浅灰底），专业商务风。
 - 右上角固定 `themeToggleBtn`（ghost 圆按钮）。
-- 居中卡片：标题"登录"、`password` 输入框（`autocomplete="current-password"`）、"登录"按钮。
+- 居中卡片 `.auth-card`：含**品牌区**（`brand-logo` 渐变方块 + `favicon.svg` + 标题"二维码中枢" + 副标题"Serverless QR Code Hub"）、带锁图标的 `password` 输入框（`autocomplete="current-password"`）、"登录"按钮（含 loading spinner 与"登录成功"态）。
 - 错误提示 `#error`（`alert alert-error`，默认 `display:none`，含"密码错误，请重试"文本）。
 - 底部 footer 含 GitHub 链接与求 Star 文案。
 
@@ -573,7 +575,7 @@ async function login() {
 
 ### 4.1 首屏主题脚本
 
-与 `login.html` 完全一致的逻辑（见 3.1），在 `<head>` 内于渲染前设定 `data-theme`。
+与 `login.html` 完全一致的逻辑，现已统一抽到 `dist/common.js`（`<head>` 内 `<script src="/common.js">` 同步引入，于渲染前设定 `data-theme`）。`admin.html` 自身不再内联首屏 IIFE、主题切换函数或第二处 `DOMContentLoaded`（见 4.18）。视觉层由 `dist/theme.css` 承载：覆盖 DaisyUI 主题变量（企业蓝 `--color-primary:#2563EB`、slate 中性灰阶、`--radius-box:1rem` 等），并统一卡片/按钮/输入框/模态框/Toast/骨架屏的精致样式与微交互。
 
 ### 4.2 顶部脚本：前端 `banPath`
 
@@ -725,7 +727,7 @@ async function decodeQR(img) {
 
 #### 4.9.4 `copyDecodedText()`
 
-- 读 `decoded-text` → `navigator.clipboard.writeText(text)`；`.then` 中填充 `newTarget`、`scrollIntoView({ behavior:'smooth' })` 到 `#addNewRow`（⚠️ 该元素不存在于 DOM，见 [6.5](#65-前端潜在问题)）、`showAlert('复制成功','success')`；`.catch` 提示复制失败。
+- 读 `decoded-text` → `navigator.clipboard.writeText(text)`；`.then` 中填充 `newTarget`、平滑滚动到 `#newTarget`（`scrollIntoView({ behavior:'smooth', block:'center' })`，已修正原指向不存在的 `#addNewRow` 问题，见 [6.5](#65-前端潜在问题)）、`showAlert('复制成功','success')`；`.catch` 提示复制失败。
 
 ### 4.10 `showAlert(message, type = 'error')`
 
@@ -880,25 +882,13 @@ async function toggleEditMode(row) {
 
 - 用 `dataset.originalData` 还原所有单元格文本/状态/按钮组，并重新绑定事件，移除 `editing` class。
 
-### 4.18 主题与二维码设置（第二处 `DOMContentLoaded`）
+### 4.18 主题与二维码设置
 
-文件中有**第二个** `DOMContentLoaded` 监听（行 1720 起），负责：
-
-```js
-document.addEventListener('DOMContentLoaded', function() {
-  // 初始化 qr-show-logo / qr-dots-style 从 localStorage
-  // 给这两个控件加 change 监听 → localStorage 写入 + 若 qrCode 存在则 updateQRCode()
-});
-
-function updateQRCode() { /* 用 #qr-url 的值与控件状态重建 QRCodeStyling，保存到 #qr-container */ }
-```
-
-- **`updateQRCode()`**（行 1754）：基于 `#qr-url` 当前值、显示 logo 复选、点样式，构造 `QRCodeStyling` 配置（240x240，errorCorrectionLevel H，可选 wechat.svg logo）；若全局 `qrCode` 实例已存在则 `qrCode.update(options)`（带 200ms 过渡），否则 `new QRCodeStyling(options).append(container)`。
-- **冗余说明**：此处的 `updateQRCode` 与 4.15 的 `generateQRForMapping`（使用局部 `currentQRCode`）是**两套并存的二维码生成逻辑**。第二处监听在页面加载时即绑定，但其 `change` 回调依赖全局变量 `qrCode`（见 [6.5](#65-前端潜在问题)）。实际面板中"二维码"按钮走的是 `generateQRForMapping`，第二处主要用于历史遗留的默认渲染。
+原文件中曾存在的**第二个** `DOMContentLoaded` 监听（负责 `qr-show-logo`/`qr-dots-style` 的 change 绑定并依赖未声明的全局 `qrCode`）以及与之并存的 `updateQRCode()` 已**移除**（见 [6.5](#65-前端潜在问题) 修复记录）。当前二维码渲染仅由 4.15 的 `generateQRForMapping`（使用局部 `currentQRCode`）负责，逻辑单一、无全局变量隐患。主题切换与初始化统一由 `common.js` 的 `initThemeToggle()` 在 `DOMContentLoaded` 时完成。
 
 ### 4.19 主题切换（`toggleTheme` / `updateThemeIcon`）
 
-与 `login.html` 的同名函数逻辑一致（system→light→dark→system 循环 + 图标切换 + 系统变化监听），区别仅在 `updateThemeIcon` 中 `iconPath` 取 `themeToggleBtn.querySelector('path')`（admin 的按钮结构与 login 略有不同，但取 path 方式等价）。
+与 `login.html` 的同名函数**现已合并到 `common.js`**（system→light→dark→system 循环 + 图标切换 + 系统变化监听）。`updateThemeIcon` 统一通过 `#themeToggleBtn path` 切换 SVG 路径，两页按钮结构均可匹配，无需各自重复实现。
 
 ### 4.20 分页与筛选事件
 
@@ -946,15 +936,9 @@ async function loadExpiringMappings(type) {
 - **与后端分类的差异**：后端用"今天 0 点"判 `expired`；前端同样用"今天 0 点"判 `isExpired`，二者一致。前端 `type==='expired'` 取 `isExpired` 真，否则取假，恰好对应后端 `expired`/`expiring` 两部分。
 - 该视图下表格仍由 `createMappingRow` 渲染，行内编辑/删除/二维码按钮均可用。
 
-### 4.23 `updateMapping(mapping)` — 旧式更新（冗余）
+### 4.23 `updateMapping(mapping)` — 旧式更新（已移除）
 
-```js
-async function updateMapping(mapping) {
-  fetch('/api/mapping', PUT, mapping) ... location.reload();
-}
-```
-
-- 该函数以"整对象 PUT + 整页刷新"方式更新，与 `saveEdit` 的局部刷新逻辑重复，**当前未被任何按钮调用**（行内编辑走 `saveEdit`）。属历史遗留代码（见 [6.5](#65-前端潜在问题)）。
+- 原 4.23 的旧式整页刷新更新函数已于 UI 优化时删除（与 `saveEdit` 重复且无调用方）。行内编辑统一走 `saveEdit`（见 [6.5](#65-前端潜在问题)）。
 
 ---
 
@@ -1083,9 +1067,12 @@ CREATE INDEX IF NOT EXISTS idx_enabled_expiry ON mappings(enabled, expiry);
 
 ### 6.5 前端潜在问题
 
-- **全局变量 `qrCode` 未声明**：`updateQRCode()`（行 1754）使用 `if (qrCode) {...} else { qrCode = new QRCodeStyling(...) }`，但 `qrCode` 从未用 `let/const` 声明，会隐式成为全局变量（非严格模式）。且第二处 `DOMContentLoaded` 在页面加载时即给 `qr-show-logo`/`qr-dots-style` 绑定 `change→updateQRCode`，此时 modal 未打开，`qr-container` 为空却可能生成默认（空 data）二维码。实际面板"二维码"按钮走的是 `generateQRForMapping`（使用局部 `currentQRCode`），二者逻辑重复。建议统一为单一 QR 生成函数并显式声明变量（或改为 `'use strict'`）。
-- **`copyDecodedText` 引用不存在的元素**：`document.getElementById('addNewRow').scrollIntoView(...)` 中 `addNewRow` 在 DOM 中不存在，`scrollIntoView` 会抛错。该错误发生在 `clipboard.writeText().then` 回调内，不会被外层 `catch` 捕获（仅 `writeText` 失败才进 catch），导致复制成功但控制台报错。建议移除该滚动调用或补上对应元素/id。
-- **`updateMapping(mapping)` 冗余**：4.23 的旧式整页刷新更新函数当前无调用方，与 `saveEdit` 重复。建议删除或合并。
+> 以下条目中的**前三项已在「UI 优化（专业商务风设计系统）」中修复**，保留记录以追溯。
+
+- ~~**全局变量 `qrCode` 未声明**~~（已修复）：原第二处 `DOMContentLoaded` 与 `updateQRCode()` 已移除，二维码渲染仅保留 `generateQRForMapping`（局部 `currentQRCode`），不再有未声明全局变量。
+- ~~**`copyDecodedText` 引用不存在的元素**~~（已修复）：滚动目标由不存在的 `#addNewRow` 改为存在的 `#newTarget`（`scrollIntoView({ behavior:'smooth', block:'center' })`）。
+- ~~**`updateMapping(mapping)` 冗余**~~（已修复）：原 4.23 旧式整页刷新更新函数已删除，编辑统一走 `saveEdit`。
+- ~~**两页主题脚本重复**~~（已修复）：登录页与管理后台原先各自内联首屏主题 IIFE、`toggleTheme`/`updateThemeIcon`/`updateThemeIcon` 与系统监听，现已抽到 `dist/common.js` 共享；视觉令牌与统一组件样式抽到 `dist/theme.css`。
 - **`fetch` 错误处理差异**：登录失败后端返回纯文本 `Unauthorized`（非 JSON），前端已用 `.catch(()=>({}))` 兜底；但 `addMapping`/`saveEdit` 等把后端 500 错误体当作 `data.message || data.error` 解析，而后端 500 返回的是 `{error: "..."}` 形态，字段对得上，但 `message` 字段不存在——错误信息可能退化为通用文案。建议后端 500 也尽量给出可读 `error`。
 
 ### 6.6 其他优化点

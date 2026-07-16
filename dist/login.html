@@ -2,144 +2,66 @@
 <html data-theme="light">
 
 <head>
-    <script>
-        // 在页面渲染前就设置主题
-        (function () {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'system') {
-                // 跟随系统设置
-                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                    document.documentElement.setAttribute('data-theme', 'dark');
-                } else {
-                    document.documentElement.setAttribute('data-theme', 'light');
-                }
-            } else if (savedTheme) {
-                document.documentElement.setAttribute('data-theme', savedTheme);
-            } else {
-                // 默认跟随系统
-                localStorage.setItem('theme', 'system');
-                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                    document.documentElement.setAttribute('data-theme', 'dark');
-                } else {
-                    document.documentElement.setAttribute('data-theme', 'light');
-                }
-            }
-        })();
-    </script>
-    <title>登录</title>
+    <script src="/common.js"></script>
+    <title>登录 · 二维码中枢</title>
     <meta charset="UTF-8">
     <meta name="darkreader-lock">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link href="/daisyui@5.css" rel="stylesheet" type="text/css" />
     <script src="/tailwindcss@4.js"></script>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-            width: 100%;
-            overflow-x: hidden;
-            /* 防止横向滚动 */
-        }
-    </style>
-    <script>
-        // 在开头添加主题切换相关函数
-        function toggleTheme() {
-            const html = document.documentElement;
-            const currentTheme = localStorage.getItem('theme') || 'system';
-            let newTheme;
-
-            // 循环切换：system -> light -> dark -> system
-            switch (currentTheme) {
-                case 'system':
-                    newTheme = 'light';
-                    break;
-                case 'light':
-                    newTheme = 'dark';
-                    break;
-                case 'dark':
-                    newTheme = 'system';
-                    break;
-                default:
-                    newTheme = 'system';
-            }
-
-            localStorage.setItem('theme', newTheme);
-
-            // 设置实际主题
-            if (newTheme === 'system') {
-                const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-                html.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
-            } else {
-                html.setAttribute('data-theme', newTheme);
-            }
-
-            updateThemeIcon(newTheme);
-        }
-
-        function updateThemeIcon(theme) {
-            const iconPath = document.querySelector('#themeToggleBtn path');
-            switch (theme) {
-                case 'system':
-                    // 显示系统图标（电脑显示器）
-                    iconPath.setAttribute('d', 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z');
-                    break;
-                case 'dark':
-                    // 显示月亮图标
-                    iconPath.setAttribute('d', 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z');
-                    break;
-                case 'light':
-                    // 显示太阳图标
-                    iconPath.setAttribute('d', 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z');
-                    break;
-            }
-        }
-
-        // 添加系统主题变化监听
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-            if (localStorage.getItem('theme') === 'system') {
-                document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-            }
-        });
-
-        // 初始化主题图标
-        document.addEventListener('DOMContentLoaded', () => {
-            updateThemeIcon(localStorage.getItem('theme') || 'system');
-            document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
-        });
-    </script>
+    <link href="/theme.css" rel="stylesheet" type="text/css" />
 </head>
 
-<body class="min-h-screen flex flex-col overflow-x-hidden">
-    <div class="absolute top-4 right-4">
+<body class="auth-page">
+    <!-- 主题切换 -->
+    <div class="absolute top-4 right-4 z-20">
         <div class="tooltip tooltip-left" data-tip="切换主题">
-            <button id="themeToggleBtn" class="btn btn-ghost btn-circle">
+            <button id="themeToggleBtn" class="btn btn-ghost btn-circle" aria-label="切换主题">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                    class="w-6 h-6">
+                    class="w-5 h-5">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                 </svg>
             </button>
         </div>
     </div>
-    <main class="flex-1 flex items-center justify-center px-4 w-full">
-        <div class="card w-[90%] max-w-96 bg-base-100 shadow-xl">
-            <div class="card-body p-6 md:p-8">
-                <h1 class="card-title text-xl md:text-2xl justify-center mb-6">登录</h1>
+
+    <main class="flex-1 flex items-center justify-center px-4 w-full py-10">
+        <div class="card w-[92%] max-w-sm bg-base-100 auth-card">
+            <div class="card-body p-7 md:p-9">
+                <!-- 品牌区 -->
+                <div class="flex flex-col items-center text-center mb-7">
+                    <div class="brand-logo mb-4">
+                        <img src="/favicon.svg" alt="logo">
+                    </div>
+                    <h1 class="text-2xl font-bold tracking-tight">二维码中枢</h1>
+                    <p class="text-sm text-base-content/60 mt-1">Serverless QR Code Hub</p>
+                </div>
+
                 <div class="form-control w-full">
-                    <input type="password" id="password" placeholder="请输入管理密码"
-                        class="input input-bordered w-full text-base md:text-lg h-11 md:h-12"
-                        autocomplete="current-password">
+                    <label for="password" class="label pb-1">
+                        <span class="label-text text-base-content/70">管理密码</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </span>
+                        <input type="password" id="password" placeholder="请输入管理密码"
+                            class="input input-bordered w-full pl-10 text-base h-12"
+                            autocomplete="current-password">
+                    </div>
+
                     <div class="flex flex-col gap-2 mt-6">
-                        <button onclick="login()" class="btn btn-primary h-11 md:h-12 text-base md:text-lg w-full">
+                        <button onclick="login()" id="loginBtn"
+                            class="btn btn-primary h-12 text-base w-full">
                             登 录
                         </button>
                     </div>
+
                     <div id="error" class="alert alert-error mt-4" style="display: none;">
                         <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none"
                             viewBox="0 0 24 24">
@@ -153,13 +75,14 @@
         </div>
     </main>
 
-    <footer class="w-full bg-base-200/80 backdrop-blur-sm py-3 md:py-4">
-        <div class="text-center text-base-content/70 px-4">
-            <p class="mb-1 md:mb-2 text-sm md:text-base">
-                GitHub: <a href="https://github.com/xxnuo/serverless-qrcode-hub" class="link link-primary font-medium"
-                    target="_blank">xxnuo/serverless-qrcode-hub </a>
+    <footer class="w-full py-4 md:py-5">
+        <div class="text-center text-base-content/60 px-4 text-sm">
+            <p class="mb-1">
+                GitHub:
+                <a href="https://github.com/xxnuo/serverless-qrcode-hub"
+                    class="link link-primary font-medium" target="_blank">xxnuo/serverless-qrcode-hub</a>
             </p>
-            <p class="text-sm md:text-base">如果觉得有用，请给我一个 Star ⭐️</p>
+            <p>如果觉得有用，请给我一个 Star ⭐️</p>
         </div>
     </footer>
 
@@ -167,7 +90,7 @@
         async function login() {
             const password = document.getElementById('password').value;
             const error = document.getElementById('error');
-            const button = document.querySelector('button');
+            const button = document.getElementById('loginBtn');
 
             button.disabled = true;
             button.innerHTML = `
@@ -178,15 +101,13 @@
             try {
                 const response = await fetch('/api/login', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ password })
                 });
 
                 if (response.ok) {
                     button.innerHTML = `
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                         </svg>
                         登录成功
@@ -196,6 +117,9 @@
                     const data = await response.json().catch(() => ({}));
                     error.querySelector('span').textContent = data.error || '密码错误，请重试';
                     error.style.display = 'flex';
+                    error.classList.remove('alert-enter');
+                    void error.offsetWidth;
+                    error.classList.add('alert-show');
                     button.disabled = false;
                     button.textContent = '登 录';
                 }
@@ -208,12 +132,9 @@
         }
 
         document.getElementById('password').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') {
-                login();
-            }
+            if (e.key === 'Enter') login();
         });
 
-        // 自动聚焦密码输入框
         document.getElementById('password').focus();
     </script>
 </body>

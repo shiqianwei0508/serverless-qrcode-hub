@@ -514,7 +514,7 @@ export default {
             today.setHours(23, 59, 59, 999);
             if (new Date(mapping.expiry) < today) {
               const expiredHtml = `<!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -522,68 +522,70 @@ export default {
     <style>
         :root {
             color-scheme: light dark;
-        }
-        body {
-            margin: 0;
-            padding: 16px;
-            min-height: 100vh;
-            display: flex;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: #f7f7f7;
-            box-sizing: border-box;
-        }
-        .container {
-            margin: auto;
-            padding: 24px 16px;
-            width: calc(100% - 32px);
-            max-width: 320px;
-            text-align: center;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        }
-        .title {
-            font-size: 22px;
-            font-weight: 600;
-            margin: 0 0 16px;
-            color: #333;
-        }
-        .message {
-            font-size: 16px;
-            color: #666;
-            margin: 16px 0;
-            line-height: 1.5;
-        }
-        .info {
-            font-size: 14px;
-            color: #999;
-            margin-top: 20px;
+            --brand: #2563EB;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --title: #0f172a;
+            --text: #475569;
+            --muted: #94a3b8;
+            --border: #e2e8f0;
         }
         @media (prefers-color-scheme: dark) {
-            body {
-                background: #1a1a1a;
-            }
-            .container {
-                background: #2a2a2a;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            }
-            .title {
-                color: #e0e0e0;
-            }
-            .message {
-                color: #aaa;
-            }
-            .info {
-                color: #777;
+            :root {
+                --bg: #0f172a;
+                --card: #1e293b;
+                --title: #e2e8f0;
+                --text: #94a3b8;
+                --muted: #64748b;
+                --border: #334155;
             }
         }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: var(--bg);
+            -webkit-font-smoothing: antialiased;
+        }
+        .card {
+            width: 100%;
+            max-width: 360px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 36px 24px;
+            text-align: center;
+            box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 20px 40px -24px rgba(15,23,42,.25);
+        }
+        .icon {
+            width: 56px; height: 56px;
+            margin: 0 auto 18px;
+            border-radius: 14px;
+            display: grid; place-items: center;
+            background: color-mix(in oklab, var(--brand) 12%, transparent);
+            color: var(--brand);
+        }
+        .icon svg { width: 28px; height: 28px; }
+        .title { font-size: 20px; font-weight: 700; color: var(--title); margin: 0 0 10px; }
+        .message { font-size: 14px; color: var(--text); margin: 8px 0; line-height: 1.6; }
+        .footer { font-size: 13px; color: var(--muted); margin-top: 22px; }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="card">
+        <div class="icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        </div>
         <h1 class="title">${mapping.name ? mapping.name + ' 已过期' : '链接已过期'}</h1>
-        <p class="info">过期时间：${new Date(mapping.expiry).toLocaleDateString()}</p>
-        <p class="info">如需访问，请联系管理员更新链接</p>
+        <p class="message">过期时间：${new Date(mapping.expiry).toLocaleDateString()}</p>
+        <p class="footer">如需访问，请联系管理员更新链接</p>
     </div>
 </body>
 </html>`;
@@ -600,7 +602,7 @@ export default {
           // 如果是微信二维码，返回活码页面
           if (mapping.isWechat === 1 && mapping.qrCodeData) {
             const wechatHtml = `<!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -608,85 +610,74 @@ export default {
     <style>
         :root {
             color-scheme: light dark;
+            --brand: #2563EB;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --title: #0f172a;
+            --text: #475569;
+            --muted: #94a3b8;
+            --border: #e2e8f0;
         }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0f172a;
+                --card: #1e293b;
+                --title: #e2e8f0;
+                --text: #94a3b8;
+                --muted: #64748b;
+                --border: #334155;
+            }
+        }
+        * { box-sizing: border-box; }
         body {
             margin: 0;
-            padding: 16px;
             min-height: 100vh;
             display: flex;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: #f7f7f7;
-            box-sizing: border-box;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: var(--bg);
+            -webkit-font-smoothing: antialiased;
         }
-        .container {
-            margin: auto;
-            padding: 24px 16px;
-            width: calc(100% - 32px);
-            max-width: 320px;
-            text-align: center;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        }
-        .wechat-icon {
-            width: 32px;
-            height: 32px;
-            margin-bottom: 12px;
-        }
-        .title {
-            font-size: 22px;
-            font-weight: 600;
-            margin: 0 0 8px;
-            color: #333;
-        }
-        .qr-code {
+        .card {
             width: 100%;
-            max-width: 240px;
-            border-radius: 8px;
-            margin: 20px 0;
+            max-width: 360px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px 24px;
+            text-align: center;
+            box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 20px 40px -24px rgba(15,23,42,.25);
         }
-        .notice {
-            font-size: 16px;
-            color: #666;
-            margin: 16px 0 0;
-            line-height: 1.5;
+        .icon {
+            width: 52px; height: 52px;
+            margin: 0 auto 14px;
+            border-radius: 14px;
+            display: grid; place-items: center;
+            background: color-mix(in oklab, var(--brand) 12%, transparent);
         }
-        .footer {
-            font-size: 14px;
-            color: #999;
-            margin-top: 20px;
+        .icon img { width: 30px; height: 30px; }
+        .title { font-size: 20px; font-weight: 700; color: var(--title); margin: 0 0 8px; }
+        .notice { font-size: 15px; color: var(--text); margin: 14px 0 0; line-height: 1.6; }
+        .qr-wrap {
+            margin: 20px auto;
+            padding: 14px;
+            background: #ffffff;
+            border-radius: 12px;
+            width: fit-content;
+            box-shadow: 0 4px 12px -6px rgba(15,23,42,.2);
         }
-
-        @media (prefers-color-scheme: dark) {
-            body {
-                background: #1a1a1a;
-            }
-            .container {
-                background: #2a2a2a;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            }
-            .title {
-                color: #e0e0e0;
-            }
-            .notice {
-                color: #aaa;
-            }
-            .footer {
-                color: #777;
-            }
-            .qr-code {
-                background: white;
-                padding: 8px;
-            }
-        }
+        .qr-code { width: 240px; height: 240px; display: block; border-radius: 6px; }
+        .footer { font-size: 13px; color: var(--muted); margin-top: 18px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <img class="wechat-icon" src="wechat.svg" alt="WeChat">
+    <div class="card">
+        <div class="icon"><img src="wechat.svg" alt="WeChat"></div>
         <h1 class="title">${mapping.name ? mapping.name : '微信二维码'}</h1>
         <p class="notice">请长按识别下方二维码</p>
-        <img class="qr-code" src="${mapping.qrCodeData}" alt="微信群二维码">
+        <div class="qr-wrap"><img class="qr-code" src="${mapping.qrCodeData}" alt="微信群二维码"></div>
         <p class="footer">二维码失效请联系作者更新</p>
     </div>
 </body>
