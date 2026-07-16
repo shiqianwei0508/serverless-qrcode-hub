@@ -616,7 +616,7 @@ const banPath = [ 'login','admin','__total_count','admin.html','login.html','dai
 - Navbar：标题"管理面板"、主题按钮、退出登录按钮。
 - "使用说明"卡片（折叠面板：使用步骤、注意事项——其中提到"过期会自动通过邮件通知"，但该功能当前未实现，见 [6.4](#64-未完成的功能声明)）。
 - "二维码识别与短链创建"卡片：左（上传识别区 `#qr-upload-area` / 结果 `#qr-result` / 复制 `#copy-btn`），右（创建表单：`#newName` / `#newPath` / `#newTarget` / `#newExpiry` / `#newEnabled` / `#newIsWechat` / `#addMappingBtn`）。
-- "短链二维码管理"卡片：筛选按钮组（全部 / 即将过期 / 已过期）、`#loading`、`#skeleton` 骨架屏、表格 `#mappingsTableBody`、分页控件（每页大小 `#pageSize`、上一页 `#prevPage`、当前页 `#currentPage`、下一页 `#nextPage`）。
+- "短链二维码管理"卡片：标题区（左上「短链二维码管理」标题，右侧 `join` 组合「搜索框 + 筛选按钮组」）；搜索框 `#searchInput`（实时模糊搜索，300ms 防抖）与一键清空按钮 `#clearSearchBtn`（有输入才显示）；筛选按钮组（全部 `#showAllBtn` / 即将过期 `#showExpiringBtn` / 已过期 `#showExpiredBtn`，分别对应 `btn-primary`/`btn-warning`/`btn-error` 高亮）；下方 `#loading`、`#skeleton` 骨架屏、表格 `#mappingsTableBody`、分页控件（每页大小 `#pageSize`、上一页 `#prevPage`、当前页 `#currentPage`、下一页 `#nextPage`）。
 
 ### 4.4 全局状态变量
 
@@ -784,7 +784,7 @@ async function loadMappings() {
 ```
 
 - **分页**：直接使用后端分页（`page`/`pageSize` 查询参数），后端返回 `totalPages`，据此禁用上/下一页按钮。
-- **模糊搜索**：管理卡片头部「短链二维码管理」旁的搜索框（`#searchInput`）输入后约 `300ms` 防抖触发；非空时 `loadMappings` 拼接 `&search=`，后端 `listMappings` 按 `name`/`path` 做 `LIKE` 过滤；搜索**仅作用于「全部」视图**，切换「即将过期/已过期」或清空搜索框时会重置 `searchKeyword` 并切回「全部」视图。
+- **模糊搜索**：管理卡片头部「短链二维码管理」旁的搜索框（`#searchInput`，带放大镜图标；其右侧 `#clearSearchBtn` 一键清空、仅在有输入时显示）。输入后约 `300ms` 防抖（`searchTimer` + `setTimeout`）触发；非空时 `loadMappings` 拼接 `&search=`，后端 `listMappings` 按 `name`/`path` 做 `LIKE` 过滤；搜索**仅作用于「全部」视图**——`input` 回调在触发前会调用 `activateAllView()`（给 `#showAllBtn` 加 `btn-primary`、移除另外两个按钮高亮）切回「全部」视图并重置 `currentPage=1`；`#clearSearchBtn` 点击走 `clearSearch()`（清空 `searchKeyword`、`#searchInput` 与隐藏清空按钮）后同样切回「全部」视图并重新 `loadMappings()`。
 - `allMappings = Object.entries(data.mappings)`：把后端键值对对象转数组，供 `renderCurrentPage` 遍历。
 - 骨架屏：请求期间隐藏表格、显示骨架屏；最后恢复。人为 `300ms` 延迟使骨架屏在快速网络下也可见。
 - **注意**：后端 `listMappings` 已从 `banPath` 过滤系统保留项，前端看到的列表不含保留名。
@@ -1108,6 +1108,10 @@ CREATE INDEX IF NOT EXISTS idx_enabled_expiry ON mappings(enabled, expiry);
 - **活码页与过期页 `Cache-Control: no-store`**：正确避免 CDN/浏览器缓存动态内容，良好实践。
 - **`banPath` 前后端双份维护**：前端（admin.html）与后端（index.js）各维护一份相同的 `banPath` 数组，存在不一致风险。建议若需前端校验则统一来源（如由 API 下发或构建期注入）。
 
+### 6.7 后台头部布局修复记录
+
+- **标题竖排/窄列问题**（提交 `0d39fda` 修复）：原「短链二维码管理」卡片头部采用 `flex md:flex-row` 布局，在 768–1279px 区间进入横排，但 `<h2>` 标题缺少 `shrink-0` / `whitespace-nowrap` 保护，浏览器对连续中文按"每字可断"处理，把标题列压到约 1em 宽，导致标题竖排、一行一字。修复方式：① 将横排断点从 `md`(768px) 提高到 `xl`(1280px)，使中屏下标题独占一行；② 标题加 `shrink-0 whitespace-nowrap`、筛选按钮组加 `shrink-0` 防止被压缩；③ 内层搜索框/按钮组改为 `flex-col sm:flex-row sm:items-center sm:justify-end` 右对齐堆叠；④ 清除上次编辑时多出的一个冗余 `</div>`，恢复 DOM 闭合平衡。
+
 ---
 
-> 文档结束。所有说明基于 `97595da chore(wrangler): 添加开发环境密码配置` 快照时的源码核实。
+> 文档结束。所有说明基于 `0d39fda fix: 修复后台标题竖排/窄列问题` 快照时的源码核实（含 `67310ac feat: 后台全部列表新增条目名称/短链名模糊搜索` 的搜索功能）。
