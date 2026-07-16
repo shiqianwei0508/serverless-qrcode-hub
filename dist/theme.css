@@ -224,4 +224,27 @@ body {
   .card-body { padding: 1rem; }
   #alertContainer { width: calc(100% - 2rem); }
   #alertContainer .alert { width: 100%; }
+  .modal-box { padding: 1.25rem; }
+}
+
+/* ---------- 15. 响应式：超小屏幕（<480px）---------- */
+@media (max-width: 480px) {
+  html { font-size: 15px; }
+  .btn { font-size: 0.8125rem; }
+  .card-title { font-size: 1.05rem; }
+  .modal-box { padding: 1rem; margin: 0.5rem; }
+  .app-navbar {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  /* 创建面板内的卡片 */
+  .card.bg-base-200\/60 { padding: 1rem !important; }
+  /* 上传区域 */
+  .upload-area { padding: 1rem !important; }
+  .upload-area svg { width: 2rem; height: 2rem; }
+  .upload-area p { font-size: 0.875rem; }
+  /* 筛选按钮组：超小屏隐藏文字 */
+  .filter-btn-group .btn .hidden.sm\\:inline { display: none !important; }
+  /* 操作按钮组 */
+  .btn-group .btn, .join .btn { font-size: 0.75rem; }
 }

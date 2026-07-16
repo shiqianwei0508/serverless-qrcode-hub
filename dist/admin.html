@@ -58,7 +58,7 @@
         }
 
         @media (max-width: 768px) {
-            body { padding: 0 10px; margin: 10px auto; }
+            body { padding: 0; margin: 8px auto; }
             .card-body { padding: 1rem; }
 
             .table-responsive {
@@ -72,7 +72,7 @@
             }
 
             .table-responsive table {
-                min-width: 800px;
+                min-width: 700px;
                 font-size: 0.875rem;
             }
 
@@ -84,23 +84,33 @@
             }
 
             .table-responsive th:nth-child(1),
-            .table-responsive td:nth-child(1) { min-width: 120px; max-width: 150px; }
+            .table-responsive td:nth-child(1) { min-width: 100px; max-width: 130px; }
             .table-responsive th:nth-child(2),
-            .table-responsive td:nth-child(2) { min-width: 100px; max-width: 120px; }
+            .table-responsive td:nth-child(2) { min-width: 80px; max-width: 100px; }
             .table-responsive th:nth-child(3),
-            .table-responsive td:nth-child(3) { min-width: 200px; max-width: 300px; }
+            .table-responsive td:nth-child(3) { min-width: 160px; max-width: 240px; }
             .table-responsive th:nth-child(4),
-            .table-responsive td:nth-child(4) { min-width: 100px; max-width: 120px; }
+            .table-responsive td:nth-child(4) { min-width: 90px; max-width: 110px; }
             .table-responsive th:nth-child(5),
-            .table-responsive td:nth-child(5) { min-width: 100px; max-width: 120px; }
+            .table-responsive td:nth-child(5) { min-width: 80px; max-width: 100px; }
             .table-responsive th:nth-child(6),
             .table-responsive td:nth-child(6) {
-                min-width: 150px;
+                min-width: 130px;
                 position: sticky;
                 right: 0;
                 background: var(--b1);
                 box-shadow: -4px 0 6px -2px rgba(0, 0, 0, 0.1);
             }
+
+            /* 操作按钮：小屏只显示图标 */
+            .table-responsive .join { flex-wrap: nowrap; gap: 0.15rem; }
+            .table-responsive .join .btn {
+                padding: 0.3rem 0.4rem;
+                min-height: unset;
+                height: auto;
+            }
+            .table-responsive .join .btn .btn-text { display: none; }
+            .table-responsive .join .btn .btn-icon { display: inline; margin: 0; }
 
             .table-responsive tr.editing td { padding: 0.75rem 0.5rem; }
             .table-responsive tr.editing input,
@@ -108,9 +118,12 @@
                 font-size: 0.875rem;
                 padding: 0.25rem 0.5rem;
             }
+        }
 
-            .table-responsive .join { flex-wrap: nowrap; gap: 0.25rem; }
-            .table-responsive .join .btn { padding-left: 0.75rem; padding-right: 0.75rem; }
+        /* 桌面端：按钮显示文字，图标可选显示 */
+        @media (min-width: 769px) {
+            .table-responsive .join .btn .btn-icon { display: none; }
+            .table-responsive .join .btn .btn-text { display: inline; }
         }
 
         #loading {
@@ -141,13 +154,13 @@
                 </label>
                 <input type="text" id="qr-url" class="input input-bordered w-full" readonly>
             </div>
-            <div class="modal-action gap-3 flex-wrap">
-                <label class="label cursor-pointer gap-2">
+            <div class="modal-action gap-3 flex-col sm:flex-row sm:flex-wrap">
+                <label class="label cursor-pointer gap-2 shrink-0">
                     <input type="checkbox" id="qr-show-logo" class="checkbox checkbox-primary" checked>
                     <span class="label-text">显示微信图标</span>
                 </label>
 
-                <select id="qr-dots-style" class="select select-bordered">
+                <select id="qr-dots-style" class="select select-bordered select-sm md:select-md">
                     <option value="dots" selected>圆点</option>
                     <option value="rounded">圆角</option>
                     <option value="classy">优雅</option>
@@ -156,8 +169,8 @@
                     <option value="extra-rounded">超圆角</option>
                 </select>
 
-                <button id="qr-download" class="btn btn-info">下载二维码</button>
-                <button class="btn btn-primary" onclick="document.getElementById('qr-modal').close()">关闭</button>
+                <button id="qr-download" class="btn btn-info btn-sm md:btn-md flex-1 sm:flex-none">下载二维码</button>
+                <button class="btn btn-primary btn-sm md:btn-md flex-1 sm:flex-none" onclick="document.getElementById('qr-modal').close()">关闭</button>
             </div>
         </div>
         <form method="dialog" class="modal-backdrop"><button>关闭</button></form>
@@ -178,17 +191,63 @@
         <form method="dialog" class="modal-backdrop"><button>关闭</button></form>
     </dialog>
 
+    <!-- 移动端编辑模态框 -->
+    <dialog id="edit-modal" class="modal">
+        <div class="modal-box rounded-2xl max-w-lg w-[95%]">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+            </form>
+            <h3 class="font-bold text-lg mb-5 section-title">编辑短链</h3>
+            <div class="space-y-4">
+                <div>
+                    <label for="editModalName" class="label pb-1"><span class="label-text text-base font-medium">条目名称</span></label>
+                    <input type="text" id="editModalName" class="input input-bordered w-full text-base h-11" placeholder="条目名称">
+                </div>
+                <div>
+                    <label for="editModalPath" class="label pb-1"><span class="label-text text-base font-medium">短链名</span></label>
+                    <input type="text" id="editModalPath" class="input input-bordered w-full text-base h-11" placeholder="短链名">
+                </div>
+                <div>
+                    <label for="editModalTarget" class="label pb-1"><span class="label-text text-base font-medium">目标 URL</span></label>
+                    <textarea id="editModalTarget" class="textarea textarea-bordered w-full text-base" rows="5" placeholder="目标 URL" style="resize:none; word-break:break-all;"></textarea>
+                </div>
+                <div>
+                    <label for="editModalExpiry" class="label pb-1"><span class="label-text text-base font-medium">有效日期</span></label>
+                    <input type="date" id="editModalExpiry" class="input input-bordered w-full text-base h-11">
+                </div>
+                <div class="flex flex-col gap-3">
+                    <label class="cursor-pointer flex items-center gap-3 p-2 rounded-lg hover:bg-base-200 transition-colors">
+                        <input type="checkbox" id="editModalEnabled" class="toggle toggle-primary" checked>
+                        <span class="label-text text-base font-medium">启用该短链</span>
+                    </label>
+                    <label class="cursor-pointer flex items-center gap-3 p-2 rounded-lg hover:bg-base-200 transition-colors">
+                        <input type="checkbox" id="editModalIsWechat" class="toggle toggle-primary">
+                        <span class="label-text text-base font-medium">微信二维码</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-action mt-5">
+                <button id="editModalSaveBtn" class="btn btn-success flex-1 h-11 text-base">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                    保存
+                </button>
+                <button id="editModalCancelBtn" class="btn btn-ghost flex-1 h-11 text-base" onclick="document.getElementById('edit-modal').close()">取消</button>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop"><button>关闭</button></form>
+    </dialog>
+
     <div id="alertContainer"></div>
     <input type="hidden" id="qrCodeData">
 
-    <div class="max-w-[1400px] mx-auto px-4 md:px-5 py-4 md:py-6">
+    <div class="max-w-[1400px] mx-auto px-3 sm:px-5 py-3 md:py-6">
         <!-- 顶部导航栏 -->
-        <div class="navbar app-navbar rounded-box mb-6 shadow-sm px-3 md:px-5">
-            <div class="flex-1 flex items-center gap-3 justify-center md:justify-start">
+        <div class="navbar app-navbar rounded-box mb-6 shadow-sm px-2 md:px-5 min-h-0 py-2 md:py-3 flex-wrap gap-y-2">
+            <div class="flex-1 flex items-center gap-2 md:gap-3 justify-center min-w-0">
                 <div class="brand-logo"><img src="/favicon.svg" alt="logo"></div>
-                <h1 class="text-xl font-bold tracking-tight">管理面板</h1>
+                <h1 class="text-lg md:text-xl font-bold tracking-tight truncate">管理面板</h1>
             </div>
-            <div class="flex gap-2 justify-center md:justify-end">
+            <div class="flex gap-1 md:gap-2 justify-center shrink-0">
                 <button id="themeToggleBtn" class="btn btn-ghost btn-sm btn-circle" aria-label="切换主题">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
                         class="w-5 h-5">
@@ -196,7 +255,7 @@
                             d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                     </svg>
                 </button>
-                <button id="logoutBtn" class="btn btn-outline btn-error btn-sm">退出登录</button>
+                <button id="logoutBtn" class="btn btn-outline btn-error btn-xs md:btn-sm">退出</button>
             </div>
         </div>
 
@@ -253,7 +312,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
                         <div id="qr-upload-area"
-                            class="upload-area border-2 border-dashed p-8 text-center rounded-xl cursor-pointer">
+                            class="upload-area border-2 border-dashed p-4 sm:p-6 md:p-8 text-center rounded-xl cursor-pointer">
                             <div class="flex flex-col items-center gap-2 text-base-content/70">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-primary" fill="none"
                                     viewBox="0 0 24 24" stroke="currentColor">
@@ -324,37 +383,37 @@
         <!-- 短链管理 -->
         <div class="card bg-base-100 shadow-xl">
             <div class="card-body">
-                <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3 mb-4">
-                    <h2 class="card-title text-lg section-title shrink-0 whitespace-nowrap">短链二维码管理</h2>
-                    <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-end">
+                <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-2 md:gap-3 mb-4">
+                    <h2 class="card-title text-base md:text-lg section-title shrink-0 whitespace-nowrap">短链二维码管理</h2>
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-end">
                         <div class="join shadow-sm w-full sm:w-auto">
-                            <span class="join-item btn btn-sm btn-ghost cursor-default px-2" aria-hidden="true">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <span class="join-item btn btn-xs md:btn-sm btn-ghost cursor-default px-1 md:px-2" aria-hidden="true">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
                             </span>
-                            <input type="text" id="searchInput" class="join-item input input-bordered input-sm w-full sm:w-56 focus:outline-none" placeholder="搜索条目名称 / 短链名…" autocomplete="off">
-                            <button id="clearSearchBtn" class="join-item btn btn-sm btn-ghost hidden px-2" aria-label="清空搜索">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <input type="text" id="searchInput" class="join-item input input-bordered input-xs md:input-sm w-full sm:w-48 md:w-56 focus:outline-none" placeholder="搜索条目名称 / 短链名…" autocomplete="off">
+                            <button id="clearSearchBtn" class="join-item btn btn-xs md:btn-sm btn-ghost hidden px-1 md:px-2" aria-label="清空搜索">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
-                        <div class="join shadow-lg shrink-0">
-                            <button id="showAllBtn" class="join-item btn btn-sm btn-primary">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div class="join shadow-lg shrink-0 filter-btn-group">
+                            <button id="showAllBtn" class="join-item btn btn-xs md:btn-sm btn-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                                </svg>全部
+                                </svg><span class="hidden sm:inline">全部</span>
                             </button>
-                            <button id="showExpiringBtn" class="join-item btn btn-sm">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <button id="showExpiringBtn" class="join-item btn btn-xs md:btn-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>即将过期
+                                </svg><span class="hidden sm:inline">即将过期</span>
                             </button>
-                            <button id="showExpiredBtn" class="join-item btn btn-sm">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <button id="showExpiredBtn" class="join-item btn btn-xs md:btn-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 md:h-4 md:w-4 md:mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                </svg>已过期
+                                </svg><span class="hidden sm:inline">已过期</span>
                             </button>
                         </div>
                     </div>
@@ -402,19 +461,19 @@
                     </table>
                 </div>
 
-                <div class="flex flex-col md:flex-row justify-between items-center mt-4 gap-4">
-                    <div class="flex items-center gap-3 whitespace-nowrap text-base-content/70">
-                        <span>每页显示：</span>
-                        <select id="pageSize" class="select select-bordered select-sm">
+                <div class="flex flex-col sm:flex-row justify-between items-center mt-4 gap-3">
+                    <div class="flex items-center gap-2 whitespace-nowrap text-base-content/70 text-sm">
+                        <span>每页：</span>
+                        <select id="pageSize" class="select select-bordered select-xs sm:select-sm">
                             <option value="10">10</option>
                             <option value="20">20</option>
                             <option value="50">50</option>
                         </select>
                     </div>
                     <div class="join shadow-sm">
-                        <button id="prevPage" class="join-item btn btn-sm">上一页</button>
-                        <button class="join-item btn btn-sm">第 <span id="currentPage">1</span> 页</button>
-                        <button id="nextPage" class="join-item btn btn-sm">下一页</button>
+                        <button id="prevPage" class="join-item btn btn-xs sm:btn-sm">上一页</button>
+                        <button class="join-item btn btn-xs sm:btn-sm">第 <span id="currentPage">1</span> 页</button>
+                        <button id="nextPage" class="join-item btn btn-xs sm:btn-sm">下一页</button>
                     </div>
                 </div>
             </div>
@@ -522,6 +581,9 @@
                 });
 
                 document.getElementById('newIsWechat').disabled = true;
+
+                // 移动端编辑模态框的保存按钮
+                document.getElementById('editModalSaveBtn').addEventListener('click', saveEditFromModal);
             }
 
             function setupErrorHandling() {
@@ -979,10 +1041,22 @@
                 const actionsCell = document.createElement('td');
                 actionsCell.innerHTML = `
                     <div class="join">
-                        <button class="join-item btn btn-warning btn-sm">编辑</button>
-                        <button class="join-item btn btn-error btn-sm">删除</button>
-                        <button class="join-item btn btn-info btn-sm">二维码</button>
-                        <button class="join-item btn btn-sm ${mapping.pinned ? 'btn-accent' : 'btn-ghost'} btn-pin">${mapping.pinned ? '取消' : '置顶'}</button>
+                        <button class="join-item btn btn-warning btn-sm">
+                            <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></span>
+                            <span class="btn-text">编辑</span>
+                        </button>
+                        <button class="join-item btn btn-error btn-sm">
+                            <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></span>
+                            <span class="btn-text">删除</span>
+                        </button>
+                        <button class="join-item btn btn-info btn-sm">
+                            <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h1.5m0 0L9 4m0 0h6m-6 0l-1 14.5M9 4l1 14.5M15 4h2l-1 14.5M12 4V3m0 0h.01M5 4l-.68-1.41M18 4l.68-1.41M10 8h.01M14 8h.01M10 12h.01M14 12h.01" /></svg></span>
+                            <span class="btn-text">二维码</span>
+                        </button>
+                        <button class="join-item btn btn-sm ${mapping.pinned ? 'btn-accent' : 'btn-ghost'} btn-pin">
+                            <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg></span>
+                            <span class="btn-text">${mapping.pinned ? '取消' : '置顶'}</span>
+                        </button>
                     </div>`;
                 const [editBtn, deleteBtn, qrBtn] = actionsCell.querySelectorAll('button:not(.btn-pin)');
                 const pinBtn = actionsCell.querySelector('.btn-pin');
@@ -996,10 +1070,15 @@
 
             async function toggleEditMode(row) {
                 const isEditing = row.classList.toggle('editing');
-                const cells = row.cells;
                 const originalData = JSON.parse(row.dataset.originalData);
 
                 if (isEditing) {
+                    // 移动端：打开模态框编辑
+                    if (window.innerWidth <= 768) {
+                        row.classList.remove('editing');
+                        await openEditModal(originalData, row);
+                        return;
+                    }
                     try {
                         const response = await fetch(`/api/mapping?path=${originalData.path}`);
                         if (!response.ok) throw new Error('获取数据失败');
@@ -1023,10 +1102,22 @@
                         const actionsCell = cells[5];
                         actionsCell.innerHTML = `
                             <div class="join">
-                                <button class="join-item btn btn-success btn-sm">保存</button>
-                                <button class="join-item btn btn-primary btn-sm">取消</button>
-                                <button class="join-item btn btn-info btn-sm">二维码</button>
-                                <button class="join-item btn btn-sm ${originalData.pinned ? 'btn-accent' : 'btn-ghost'} btn-pin">${originalData.pinned ? '取消' : '置顶'}</button>
+                                <button class="join-item btn btn-success btn-sm">
+                                    <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg></span>
+                                    <span class="btn-text">保存</span>
+                                </button>
+                                <button class="join-item btn btn-primary btn-sm">
+                                    <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></span>
+                                    <span class="btn-text">取消</span>
+                                </button>
+                                <button class="join-item btn btn-info btn-sm">
+                                    <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h1.5m0 0L9 4m0 0h6m-6 0l-1 14.5M9 4l1 14.5M15 4h2l-1 14.5M12 4V3m0 0h.01M5 4l-.68-1.41M18 4l.68-1.41M10 8h.01M14 8h.01M10 12h.01M14 12h.01" /></svg></span>
+                                    <span class="btn-text">二维码</span>
+                                </button>
+                                <button class="join-item btn btn-sm ${originalData.pinned ? 'btn-accent' : 'btn-ghost'} btn-pin">
+                                    <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg></span>
+                                    <span class="btn-text">${originalData.pinned ? '取消' : '置顶'}</span>
+                                </button>
                             </div>`;
                         const [saveBtn, cancelBtn, qrBtn] = actionsCell.querySelectorAll('button:not(.btn-pin)');
                         const pinBtn = actionsCell.querySelector('.btn-pin');
@@ -1113,10 +1204,22 @@
                 const actionsCell = cells[5];
                 actionsCell.innerHTML = `
                     <div class="join">
-                        <button class="join-item btn btn-warning btn-sm">编辑</button>
-                        <button class="join-item btn btn-error btn-sm">删除</button>
-                        <button class="join-item btn btn-info btn-sm">二维码</button>
-                        <button class="join-item btn btn-sm ${originalData.pinned ? 'btn-accent' : 'btn-ghost'} btn-pin">${originalData.pinned ? '取消' : '置顶'}</button>
+                        <button class="join-item btn btn-warning btn-sm">
+                            <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></span>
+                            <span class="btn-text">编辑</span>
+                        </button>
+                        <button class="join-item btn btn-error btn-sm">
+                            <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></span>
+                            <span class="btn-text">删除</span>
+                        </button>
+                        <button class="join-item btn btn-info btn-sm">
+                            <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h1.5m0 0L9 4m0 0h6m-6 0l-1 14.5M9 4l1 14.5M15 4h2l-1 14.5M12 4V3m0 0h.01M5 4l-.68-1.41M18 4l.68-1.41M10 8h.01M14 8h.01M10 12h.01M14 12h.01" /></svg></span>
+                            <span class="btn-text">二维码</span>
+                        </button>
+                        <button class="join-item btn btn-sm ${originalData.pinned ? 'btn-accent' : 'btn-ghost'} btn-pin">
+                            <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg></span>
+                            <span class="btn-text">${originalData.pinned ? '取消' : '置顶'}</span>
+                        </button>
                     </div>`;
                 const [editBtn, deleteBtn, qrBtn] = actionsCell.querySelectorAll('button:not(.btn-pin)');
                 const pinBtn = actionsCell.querySelector('.btn-pin');
@@ -1125,6 +1228,86 @@
                 qrBtn.onclick = () => generateQRForMapping(window.location.origin + '/' + originalData.path, originalData.path);
                 pinBtn.onclick = () => togglePin(originalData.path, originalData.pinned);
                 row.classList.remove('editing');
+            }
+
+            let currentEditRow = null; // 移动端模态框编辑的行引用
+            let currentEditOriginalData = null;
+
+            async function openEditModal(originalData, row) {
+                currentEditRow = row;
+                currentEditOriginalData = originalData;
+                try {
+                    const response = await fetch(`/api/mapping?path=${originalData.path}`);
+                    if (!response.ok) throw new Error('获取数据失败');
+                    const mappingData = await response.json();
+
+                    document.getElementById('editModalName').value = mappingData.name || '';
+                    document.getElementById('editModalPath').value = mappingData.path;
+                    document.getElementById('editModalTarget').value = mappingData.target;
+                    document.getElementById('editModalExpiry').value = timestampToInputValue(mappingData.expiry);
+                    document.getElementById('editModalEnabled').checked = mappingData.enabled;
+                    document.getElementById('editModalIsWechat').checked = mappingData.isWechat;
+
+                    document.getElementById('edit-modal').showModal();
+                } catch (error) {
+                    console.error('获取数据失败:', error);
+                    showAlert('获取数据失败，请重试');
+                }
+            }
+
+            async function saveEditFromModal() {
+                const newName = document.getElementById('editModalName').value.trim();
+                const newPath = document.getElementById('editModalPath').value.trim();
+                const newTarget = document.getElementById('editModalTarget').value.trim();
+                const newExpiry = dateToTimestamp(document.getElementById('editModalExpiry').value);
+                const newEnabled = document.getElementById('editModalEnabled').checked;
+                const newIsWechat = document.getElementById('editModalIsWechat').checked;
+
+                if (!newName) { showAlert('请输入条目名称'); return; }
+                if (!newPath) { showAlert('请输入短链名'); return; }
+                if (!/^[a-zA-Z0-9-_]+$/.test(newPath)) { showAlert('短链名只能包含字母、数字、下划线和横线'); return; }
+                if (!newTarget) { showAlert('请输入目标 URL'); return; }
+
+                const od = currentEditOriginalData;
+                const hasChanges = newName !== od.name || newPath !== od.path || newTarget !== od.target
+                    || newExpiry !== od.expiry || newEnabled !== od.enabled || newIsWechat !== od.isWechat;
+                if (!hasChanges) {
+                    document.getElementById('edit-modal').close();
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/mapping?path=${od.path}`);
+                    if (!response.ok) throw new Error('获取原有数据失败');
+                    const serverData = await response.json();
+                    const updateResponse = await fetch('/api/mapping', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            originalPath: od.path, path: newPath, target: newTarget,
+                            name: newName, expiry: newExpiry || null, enabled: newEnabled,
+                            isWechat: newIsWechat, qrCodeData: serverData.qrCodeData
+                        })
+                    });
+                    if (!updateResponse.ok) {
+                        const data = await updateResponse.json();
+                        showAlert(data.message || data.error || '更新失败，请重试');
+                        return;
+                    }
+                    showAlert('更新成功', 'success');
+                    document.getElementById('edit-modal').close();
+                    await loadMappings();
+                    const expiringBtn = document.getElementById('showExpiringBtn');
+                    const expiredBtn = document.getElementById('showExpiredBtn');
+                    if (expiringBtn.classList.contains('btn-warning')) {
+                        await loadExpiringMappings('expiring');
+                    } else if (expiredBtn.classList.contains('btn-error')) {
+                        await loadExpiringMappings('expired');
+                    }
+                } catch (error) {
+                    console.error('更新失败:', error);
+                    showAlert('更新失败，请检查网络连接后重试');
+                }
             }
 
             let allMappings = [];
