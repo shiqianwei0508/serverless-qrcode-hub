@@ -362,7 +362,14 @@
                     <table class="table table-zebra w-full">
                         <thead>
                             <tr>
-                                <th class="w-[15%]">条目名称</th>
+                                <th class="w-[15%]">
+                                    <button type="button" id="sortNameHeader" class="inline-flex items-center gap-1 cursor-pointer select-none hover:text-primary transition-colors" title="点击按名称首字母排序">
+                                        条目名称
+                                        <svg id="sortNameIcon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+                                        </svg>
+                                    </button>
+                                </th>
                                 <th class="w-[12%]">短链名</th>
                                 <th class="w-[28%]">目标 URL</th>
                                 <th class="w-[15%]">有效日期</th>
@@ -1074,6 +1081,24 @@
                 if (expiringBtn.classList.contains('btn-warning')) await loadExpiringMappings('expiring');
                 else if (expiredBtn.classList.contains('btn-error')) await loadExpiringMappings('expired');
                 else await loadMappings();
+            });
+
+            // 条目名称按首字母排序（升/降切换）
+            let nameSortAsc = true;
+            const sortNameHeader = document.getElementById('sortNameHeader');
+            const sortNameIcon = document.getElementById('sortNameIcon');
+            sortNameHeader.addEventListener('click', () => {
+                nameSortAsc = !nameSortAsc;
+                const dir = nameSortAsc ? 1 : -1;
+                allMappings.sort((a, b) =>
+                    dir * String(a[1].name || '').localeCompare(String(b[1].name || ''), 'zh-Hans-CN', { sensitivity: 'base' })
+                );
+                renderCurrentPage();
+                const up = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />';
+                const down = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />';
+                sortNameIcon.innerHTML = nameSortAsc ? up : down;
+                sortNameIcon.classList.remove('text-base-content/40');
+                sortNameIcon.classList.add('text-primary');
             });
 
             async function logout() {
