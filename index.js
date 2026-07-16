@@ -44,6 +44,14 @@ async function initDatabase() {
     `).run();
   }
 
+  // 添加 pinned 列（如果不存在），用于条目全局置顶
+  if (!columns.includes('pinned')) {
+    await DB.prepare(`
+      ALTER TABLE mappings 
+      ADD COLUMN pinned INTEGER DEFAULT 0
+    `).run();
+  }
+
   // 添加索引
   await DB.prepare(`
     CREATE INDEX IF NOT EXISTS idx_expiry ON mappings(expiry)
@@ -95,7 +103,7 @@ async function listMappings(page = 1, pageSize = 10) {
       filtered.*,
       (SELECT COUNT(*) FROM filtered_mappings) as total_count
     FROM filtered_mappings as filtered
-    ORDER BY created_at DESC
+    ORDER BY pinned DESC, created_at DESC
     LIMIT ? OFFSET ?
   `).bind(...banPath, pageSize, offset).all();
 
@@ -119,7 +127,8 @@ async function listMappings(page = 1, pageSize = 10) {
       expiry: row.expiry,
       enabled: row.enabled === 1,
       isWechat: row.isWechat === 1,
-      qrCodeData: row.qrCodeData
+      qrCodeData: row.qrCodeData,
+      pinned: row.pinned === 1
     };
   }
 
@@ -176,6 +185,18 @@ async function deleteMapping(path) {
   }
 
   await DB.prepare('DELETE FROM mappings WHERE path = ?').bind(path).run();
+}
+
+async function pinMapping(path, pinned) {
+  if (!path || typeof path !== 'string') {
+    throw new Error('Invalid input');
+  }
+
+  await DB.prepare(`
+    UPDATE mappings
+    SET pinned = ?
+    WHERE path = ?
+  `).bind(pinned ? 1 : 0, path).run();
 }
 
 async function updateMapping(originalPath, newPath, target, name, expiry, enabled = true, isWechat = false, qrCodeData = null) {
@@ -476,6 +497,23 @@ export default {
           if (request.method === 'DELETE') {
             const { path } = await request.json();
             await deleteMapping(path);
+            return new Response(JSON.stringify({ success: true }), {
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+        }
+
+        // 置顶 / 取消置顶映射
+        if (path === 'api/mapping/pin') {
+          if (request.method === 'POST') {
+            const { path: pinnedPath, pinned } = await request.json();
+            if (!pinnedPath) {
+              return new Response(JSON.stringify({ error: 'Missing path' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+              });
+            }
+            await pinMapping(pinnedPath, pinned);
             return new Response(JSON.stringify({ success: true }), {
               headers: { 'Content-Type': 'application/json' }
             });

@@ -785,6 +785,23 @@
                 }
             }
 
+            async function togglePin(path, currentPinned) {
+                try {
+                    const response = await fetch('/api/mapping/pin', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ path: path, pinned: currentPinned ? 0 : 1 })
+                    });
+                    if (response.status === 401) { window.location.href = '/login'; return; }
+                    if (!response.ok) throw new Error('操作失败');
+                    showAlert(currentPinned ? '已取消置顶' : '已置顶', 'success');
+                    await loadMappings();
+                } catch (error) {
+                    console.error('置顶操作失败:', error);
+                    showAlert('置顶操作失败，请重试');
+                }
+            }
+
             async function deleteMapping(path) {
                 const modal = document.getElementById('delete-confirm-modal');
                 const confirmBtn = document.getElementById('confirm-delete-btn');
@@ -885,7 +902,8 @@
                 row.dataset.originalData = JSON.stringify({
                     name: mapping.name || '', path: path, target: mapping.target,
                     expiry: mapping.expiry || '', enabled: mapping.enabled,
-                    isWechat: mapping.isWechat, qrCodeData: mapping.qrCodeData
+                    isWechat: mapping.isWechat, qrCodeData: mapping.qrCodeData,
+                    pinned: mapping.pinned
                 });
 
                 const cellsData = [
@@ -912,6 +930,7 @@
                     <div class="flex items-center gap-2">
                         <span class="badge ${mapping.enabled ? 'badge-success' : 'badge-error'}">${mapping.enabled ? '启用' : '禁用'}</span>
                         ${mapping.isWechat ? '<span class="badge badge-info">微信</span>' : ''}
+                        ${mapping.pinned ? '<span class="badge badge-primary">置顶</span>' : ''}
                     </div>`;
                 row.appendChild(statusCell);
 
@@ -921,11 +940,14 @@
                         <button class="join-item btn btn-warning btn-sm">编辑</button>
                         <button class="join-item btn btn-error btn-sm">删除</button>
                         <button class="join-item btn btn-info btn-sm">二维码</button>
+                        <button class="join-item btn btn-sm ${mapping.pinned ? 'btn-accent' : 'btn-ghost'} btn-pin">${mapping.pinned ? '取消' : '置顶'}</button>
                     </div>`;
-                const [editBtn, deleteBtn, qrBtn] = actionsCell.querySelectorAll('button');
+                const [editBtn, deleteBtn, qrBtn] = actionsCell.querySelectorAll('button:not(.btn-pin)');
+                const pinBtn = actionsCell.querySelector('.btn-pin');
                 editBtn.onclick = () => toggleEditMode(row);
                 deleteBtn.onclick = (e) => { e.preventDefault(); deleteMapping(path); };
                 qrBtn.onclick = () => generateQRForMapping(window.location.origin + '/' + path, path);
+                pinBtn.onclick = () => togglePin(path, mapping.pinned);
                 row.appendChild(actionsCell);
                 return row;
             }
@@ -962,11 +984,14 @@
                                 <button class="join-item btn btn-success btn-sm">保存</button>
                                 <button class="join-item btn btn-primary btn-sm">取消</button>
                                 <button class="join-item btn btn-info btn-sm">二维码</button>
+                                <button class="join-item btn btn-sm ${originalData.pinned ? 'btn-accent' : 'btn-ghost'} btn-pin">${originalData.pinned ? '取消' : '置顶'}</button>
                             </div>`;
-                        const [saveBtn, cancelBtn, qrBtn] = actionsCell.querySelectorAll('button');
+                        const [saveBtn, cancelBtn, qrBtn] = actionsCell.querySelectorAll('button:not(.btn-pin)');
+                        const pinBtn = actionsCell.querySelector('.btn-pin');
                         saveBtn.onclick = () => saveEdit(row);
                         cancelBtn.onclick = () => restoreRow(row);
                         qrBtn.onclick = () => generateQRForMapping(window.location.origin + '/' + originalData.path, originalData.path);
+                        pinBtn.onclick = () => togglePin(originalData.path, originalData.pinned);
                     } catch (error) {
                         console.error('获取数据失败:', error);
                         showAlert('获取数据失败，请重试');
@@ -1041,6 +1066,7 @@
                     <div class="flex items-center gap-2">
                         <span class="badge ${originalData.enabled ? 'badge-success' : 'badge-error'}">${originalData.enabled ? '启用' : '禁用'}</span>
                         ${originalData.isWechat ? '<span class="badge badge-info">微信</span>' : ''}
+                        ${originalData.pinned ? '<span class="badge badge-primary">置顶</span>' : ''}
                     </div>`;
                 const actionsCell = cells[5];
                 actionsCell.innerHTML = `
@@ -1048,11 +1074,14 @@
                         <button class="join-item btn btn-warning btn-sm">编辑</button>
                         <button class="join-item btn btn-error btn-sm">删除</button>
                         <button class="join-item btn btn-info btn-sm">二维码</button>
+                        <button class="join-item btn btn-sm ${originalData.pinned ? 'btn-accent' : 'btn-ghost'} btn-pin">${originalData.pinned ? '取消' : '置顶'}</button>
                     </div>`;
-                const [editBtn, deleteBtn, qrBtn] = actionsCell.querySelectorAll('button');
+                const [editBtn, deleteBtn, qrBtn] = actionsCell.querySelectorAll('button:not(.btn-pin)');
+                const pinBtn = actionsCell.querySelector('.btn-pin');
                 editBtn.onclick = () => toggleEditMode(row);
                 deleteBtn.onclick = () => deleteMapping(originalData.path);
                 qrBtn.onclick = () => generateQRForMapping(window.location.origin + '/' + originalData.path, originalData.path);
+                pinBtn.onclick = () => togglePin(originalData.path, originalData.pinned);
                 row.classList.remove('editing');
             }
 
@@ -1107,9 +1136,13 @@
             }
             function applySort(key) {
                 const dir = sortState[key] ? 1 : -1;
-                allMappings.sort((a, b) =>
-                    dir * sortConfig[key].get(a).localeCompare(sortConfig[key].get(b), 'zh-Hans-CN', { sensitivity: 'base' })
-                );
+                allMappings.sort((a, b) => {
+                    // 置顶项始终排最前（主要比较键），与排序方向无关
+                    const pa = a[1].pinned ? 1 : 0;
+                    const pb = b[1].pinned ? 1 : 0;
+                    if (pa !== pb) return pb - pa;
+                    return dir * sortConfig[key].get(a).localeCompare(sortConfig[key].get(b), 'zh-Hans-CN', { sensitivity: 'base' });
+                });
                 renderCurrentPage();
                 const c = sortConfig[key];
                 c.icon.innerHTML = sortState[key] ? SORT_UP : SORT_DOWN;
