@@ -52,41 +52,8 @@
 </head>
 
 <body>
-    <!-- 二维码预览模态框 -->
-    <dialog id="qr-modal" class="modal">
-        <div class="modal-box rounded-2xl">
-            <form method="dialog">
-                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
-            </form>
-            <h3 class="font-bold text-lg mb-4 section-title">二维码</h3>
-            <div id="qr-container" class="flex justify-center mb-4"></div>
-            <div class="mb-4">
-                <label class="label">
-                    <span class="label-text text-base-content/70">链接地址</span>
-                </label>
-                <input type="text" id="qr-url" class="input input-bordered w-full" readonly>
-            </div>
-            <div class="modal-action gap-3 flex-col sm:flex-row sm:flex-wrap">
-                <label class="label cursor-pointer gap-2 shrink-0">
-                    <input type="checkbox" id="qr-show-logo" class="checkbox checkbox-primary" checked>
-                    <span class="label-text">显示微信图标</span>
-                </label>
+    <!-- 二维码预览已合并至详情模态框 -->
 
-                <select id="qr-dots-style" class="select select-bordered select-sm md:select-md">
-                    <option value="dots" selected>圆点</option>
-                    <option value="rounded">圆角</option>
-                    <option value="classy">优雅</option>
-                    <option value="classy-rounded">优雅圆角</option>
-                    <option value="square">方形</option>
-                    <option value="extra-rounded">超圆角</option>
-                </select>
-
-                <button id="qr-download" class="btn btn-info btn-sm md:btn-md flex-1 sm:flex-none">下载二维码</button>
-                <button class="btn btn-primary btn-sm md:btn-md flex-1 sm:flex-none" onclick="document.getElementById('qr-modal').close()">关闭</button>
-            </div>
-        </div>
-        <form method="dialog" class="modal-backdrop"><button>关闭</button></form>
-    </dialog>
 
     <!-- 删除确认模态框 -->
     <dialog id="delete-confirm-modal" class="modal">
@@ -131,6 +98,27 @@
                     <span id="detailEnabled" class="badge badge-lg"></span>
                     <span id="detailWechat" class="badge badge-info badge-lg hidden">微信</span>
                     <span id="detailPinned" class="badge badge-primary badge-lg hidden">置顶</span>
+                </div>
+                <div class="divider my-4">二维码</div>
+                <div id="qr-container" class="flex justify-center mb-3"></div>
+                <div class="mb-3">
+                    <label class="label pb-1"><span class="label-text text-base-content/60 text-xs">链接地址</span></label>
+                    <input type="text" id="qr-url" class="input input-bordered w-full" readonly>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
+                    <label class="label cursor-pointer gap-2 shrink-0">
+                        <input type="checkbox" id="qr-show-logo" class="checkbox checkbox-primary" checked>
+                        <span class="label-text">显示微信图标</span>
+                    </label>
+                    <select id="qr-dots-style" class="select select-bordered select-sm md:select-md">
+                        <option value="dots" selected>圆点</option>
+                        <option value="rounded">圆角</option>
+                        <option value="classy">优雅</option>
+                        <option value="classy-rounded">优雅圆角</option>
+                        <option value="square">方形</option>
+                        <option value="extra-rounded">超圆角</option>
+                    </select>
+                    <button id="qr-download" class="btn btn-info btn-sm md:btn-md flex-1 sm:flex-none">下载二维码</button>
                 </div>
             </div>
             <div class="modal-action mt-5">
@@ -886,61 +874,6 @@
                 });
             }
 
-            function generateQRForMapping(url, newPath) {
-                const modal = document.getElementById('qr-modal');
-                const container = document.getElementById('qr-container');
-                const downloadBtn = document.getElementById('qr-download');
-                const urlInput = document.getElementById('qr-url');
-                const showLogoCheckbox = document.getElementById('qr-show-logo');
-                const dotsStyleSelect = document.getElementById('qr-dots-style');
-
-                container.innerHTML = '';
-                urlInput.value = url;
-
-                const savedShowLogo = localStorage.getItem('qr-show-logo');
-                const savedDotsStyle = localStorage.getItem('qr-dots-style');
-                if (savedShowLogo !== null) showLogoCheckbox.checked = savedShowLogo === 'true';
-                if (savedDotsStyle) dotsStyleSelect.value = savedDotsStyle;
-
-                const getQRConfig = (showLogo, dotsType) => ({
-                    width: 300, height: 300, type: 'canvas', data: url,
-                    dotsOptions: { color: "#000000", type: dotsType },
-                    cornersSquareOptions: { type: 'rounded' },
-                    cornersDotOptions: { type: 'rounded' },
-                    backgroundOptions: { color: "#FFFFFF" },
-                    qrOptions: { errorCorrectionLevel: 'H' },
-                    ...(showLogo ? {
-                        image: "/wechat.svg",
-                        imageOptions: { hideBackgroundDots: true, imageSize: 0.23, margin: 5 }
-                    } : {})
-                });
-
-                let currentQRCode = new QRCodeStyling(getQRConfig(showLogoCheckbox.checked, dotsStyleSelect.value));
-                currentQRCode.append(container);
-
-                const updateQRCode = () => {
-                    container.classList.add('switching');
-                    setTimeout(() => {
-                        container.innerHTML = '';
-                        currentQRCode = new QRCodeStyling(getQRConfig(showLogoCheckbox.checked, dotsStyleSelect.value));
-                        currentQRCode.append(container);
-                        localStorage.setItem('qr-show-logo', showLogoCheckbox.checked);
-                        localStorage.setItem('qr-dots-style', dotsStyleSelect.value);
-                        requestAnimationFrame(() => container.classList.remove('switching'));
-                    }, 200);
-                };
-
-                showLogoCheckbox.onchange = updateQRCode;
-                dotsStyleSelect.onchange = updateQRCode;
-
-                downloadBtn.onclick = () => {
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').replace('Z', '');
-                    currentQRCode.download({ name: `qr-${newPath}-${timestamp}`, extension: 'png' });
-                };
-
-                modal.showModal();
-            }
-
             function createMappingCard(path, mapping) {
                 const card = document.createElement('div');
                 card.className = 'mapping-card card bg-base-100 shadow-sm p-4';
@@ -978,10 +911,6 @@
                             <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></span>
                             <span class="btn-text">删除</span>
                         </button>
-                        <button class="join-item btn btn-info btn-sm flex-1 btn-qr" title="查看二维码">
-                            <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h1.5m0 0L9 4m0 0h6m-6 0l-1 14.5M9 4l1 14.5M15 4h2l-1 14.5M12 4V3m0 0h.01M5 4l-.68-1.41M18 4l.68-1.41M10 8h.01M14 8h.01M10 12h.01M14 12h.01" /></svg></span>
-                            <span class="btn-text">二维码</span>
-                        </button>
                         <button class="join-item btn btn-sm flex-1 btn-pin ${mapping.pinned ? 'btn-accent' : 'btn-ghost'}" title="${mapping.pinned ? '取消置顶' : '置顶'}">
                             <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg></span>
                             <span class="btn-text">${mapping.pinned ? '取消' : '置顶'}</span>
@@ -994,7 +923,6 @@
                     openEditModal(od);
                 };
                 card.querySelector('.btn-delete').onclick = (e) => { e.preventDefault(); deleteMapping(path); };
-                card.querySelector('.btn-qr').onclick = () => generateQRForMapping(window.location.origin + '/' + path, path);
                 card.querySelector('.btn-pin').onclick = () => togglePin(path, mapping.pinned);
 
                 return card;
@@ -1026,6 +954,57 @@
                     openEditModal(od);
                 };
                 detailEditBtn.onclick = doEdit;
+
+                // 二维码预览：嵌入详情弹窗下半部分
+                const container = document.getElementById('qr-container');
+                const downloadBtn = document.getElementById('qr-download');
+                const urlInput = document.getElementById('qr-url');
+                const showLogoCheckbox = document.getElementById('qr-show-logo');
+                const dotsStyleSelect = document.getElementById('qr-dots-style');
+
+                container.innerHTML = '';
+                urlInput.value = window.location.origin + '/' + path;
+
+                const savedShowLogo = localStorage.getItem('qr-show-logo');
+                const savedDotsStyle = localStorage.getItem('qr-dots-style');
+                if (savedShowLogo !== null) showLogoCheckbox.checked = savedShowLogo === 'true';
+                if (savedDotsStyle) dotsStyleSelect.value = savedDotsStyle;
+
+                const getQRConfig = (showLogo, dotsType) => ({
+                    width: 300, height: 300, type: 'canvas', data: urlInput.value,
+                    dotsOptions: { color: "#000000", type: dotsType },
+                    cornersSquareOptions: { type: 'rounded' },
+                    cornersDotOptions: { type: 'rounded' },
+                    backgroundOptions: { color: "#FFFFFF" },
+                    qrOptions: { errorCorrectionLevel: 'H' },
+                    ...(showLogo ? {
+                        image: "/wechat.svg",
+                        imageOptions: { hideBackgroundDots: true, imageSize: 0.23, margin: 5 }
+                    } : {})
+                });
+
+                let currentQRCode = new QRCodeStyling(getQRConfig(showLogoCheckbox.checked, dotsStyleSelect.value));
+                currentQRCode.append(container);
+
+                const updateQRCode = () => {
+                    container.classList.add('switching');
+                    setTimeout(() => {
+                        container.innerHTML = '';
+                        currentQRCode = new QRCodeStyling(getQRConfig(showLogoCheckbox.checked, dotsStyleSelect.value));
+                        currentQRCode.append(container);
+                        localStorage.setItem('qr-show-logo', showLogoCheckbox.checked);
+                        localStorage.setItem('qr-dots-style', dotsStyleSelect.value);
+                        requestAnimationFrame(() => container.classList.remove('switching'));
+                    }, 200);
+                };
+
+                showLogoCheckbox.onchange = updateQRCode;
+                dotsStyleSelect.onchange = updateQRCode;
+
+                downloadBtn.onclick = () => {
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').replace('Z', '');
+                    currentQRCode.download({ name: `qr-${path}-${timestamp}`, extension: 'png' });
+                };
 
                 document.getElementById('detail-modal').showModal();
             }
