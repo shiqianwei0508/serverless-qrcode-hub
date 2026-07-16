@@ -67,48 +67,52 @@ async function initDatabase() {
   `).run();
 
   // 数据迁移：将旧格式日期字符串转为毫秒时间戳
-  const oldFormatCount = await DB.prepare(`
+  // Step 1: 迁移 expiry 字段（YYYY-MM-DD → 毫秒时间戳）
+  const oldExpiryCount = await DB.prepare(`
     SELECT COUNT(*) as cnt FROM mappings 
     WHERE expiry IS NOT NULL AND expiry GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
   `).first();
-  if (oldFormatCount && oldFormatCount.cnt > 0) {
-    console.log(`Migrating ${oldFormatCount.cnt} mappings from date string to timestamp...`);
-    const needCreatedAtMigration = await DB.prepare(`
-      SELECT COUNT(*) as cnt FROM mappings
-      WHERE created_at IS NOT NULL AND created_at GLOB '[0-9][0-9][0-9][0-9]-*'
-    `).first();
+  if (oldExpiryCount && oldExpiryCount.cnt > 0) {
+    console.log(`Migrating ${oldExpiryCount.cnt} expiry values from date string to timestamp...`);
+    const rows = await DB.prepare(`
+      SELECT path, expiry FROM mappings
+      WHERE expiry IS NOT NULL AND expiry GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+    `).all();
     let migrated = 0;
-    if (needCreatedAtMigration && needCreatedAtMigration.cnt > 0) {
-      // expiry 和 created_at 都是旧格式：逐行迁移
-      const rows = await DB.prepare(`
-        SELECT path, expiry, created_at FROM mappings
-        WHERE expiry IS NOT NULL AND expiry GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
-      `).all();
-      for (const row of rows.results) {
-        const newExpiry = new Date(row.expiry + 'T00:00:00Z').getTime().toString();
-        const newCreatedAt = /^\d{13}$/.test(row.created_at)
-          ? row.created_at
-          : new Date(row.created_at.replace(' ', 'T') + 'Z').getTime().toString();
-        await DB.prepare(`
-          UPDATE mappings SET expiry = ?, created_at = ? WHERE path = ?
-        `).bind(newExpiry, newCreatedAt, row.path).run();
-        migrated++;
-      }
-    } else {
-      // 仅 expiry 是旧格式（created_at 已迁移）：批量更新 expiry
-      const rows = await DB.prepare(`
-        SELECT path, expiry FROM mappings
-        WHERE expiry IS NOT NULL AND expiry GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
-      `).all();
-      for (const row of rows.results) {
-        const newExpiry = new Date(row.expiry + 'T00:00:00Z').getTime().toString();
-        await DB.prepare(`
-          UPDATE mappings SET expiry = ? WHERE path = ?
-        `).bind(newExpiry, row.path).run();
-        migrated++;
-      }
+    for (const row of rows.results) {
+      const newExpiry = new Date(row.expiry + 'T00:00:00Z').getTime().toString();
+      await DB.prepare(`
+        UPDATE mappings SET expiry = ? WHERE path = ?
+      `).bind(newExpiry, row.path).run();
+      migrated++;
     }
-    console.log(`Migration complete: ${migrated} rows`);
+    console.log(`Expiry migration complete: ${migrated} rows`);
+  }
+
+  // Step 2: 迁移 created_at 字段（YYYY-MM-DD HH:MM:SS → 毫秒时间戳）
+  // 注意：created_at 的迁移独立于 expiry，因为永久链接的 expiry 为 NULL，
+  // 不能依赖 expiry 的 GLOB 检测来触发 created_at 迁移
+  const oldCreatedAtCount = await DB.prepare(`
+    SELECT COUNT(*) as cnt FROM mappings
+    WHERE created_at IS NOT NULL AND created_at LIKE '% %'
+  `).first();
+  if (oldCreatedAtCount && oldCreatedAtCount.cnt > 0) {
+    console.log(`Migrating ${oldCreatedAtCount.cnt} created_at values from date string to timestamp...`);
+    const rows = await DB.prepare(`
+      SELECT path, created_at FROM mappings
+      WHERE created_at IS NOT NULL AND created_at LIKE '% %'
+    `).all();
+    let migrated = 0;
+    for (const row of rows.results) {
+      // 跳过已经是时间戳格式的（不应该出现，但做防御）
+      if (/^\d{13}$/.test(row.created_at)) continue;
+      const newCreatedAt = new Date(row.created_at.replace(' ', 'T') + 'Z').getTime().toString();
+      await DB.prepare(`
+        UPDATE mappings SET created_at = ? WHERE path = ?
+      `).bind(newCreatedAt, row.path).run();
+      migrated++;
+    }
+    console.log(`Created_at migration complete: ${migrated} rows`);
   }
 }
 
