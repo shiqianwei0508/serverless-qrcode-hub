@@ -128,6 +128,10 @@ This project is configured with Cloudflare Workers Builds. After pushing code to
 > ```
 > This repository has set `wrangler.toml`'s `name` to `serverless-qrcode-hub-dev`, matching CI's expectation (deployment address: `https://serverless-qrcode-hub-dev.sqwei2012.workers.dev`). After forking, please modify this `name` according to the Worker name you created on Cloudflare to avoid the warning.
 
+## Other deployment options
+
+Besides the Cloudflare cloud workflow above, this project also supports running fully offline via Docker, or directly on your machine with `wrangler dev --local`. See [docs/deployment.md](./docs/deployment.md) for all three methods (Cloudflare cloud / Docker / local offline dev).
+
 ## TODO
 
 - [x] Implement scheduled check for expired short links

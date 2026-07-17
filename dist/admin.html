@@ -198,6 +198,20 @@
         <form method="dialog" class="modal-backdrop"><button data-i18n="admin.close">Close</button></form>
     </dialog>
 
+    <!-- Protocol prefix choice modal -->
+    <dialog id="protocol-modal" class="modal">
+        <div class="modal-box rounded-2xl max-w-sm w-[95%] text-center">
+            <h3 class="font-bold text-lg mb-2 section-title" id="protocol-modal-title"></h3>
+            <p class="text-sm opacity-70 mb-5" id="protocol-modal-body"></p>
+            <div class="flex flex-col gap-3">
+                <button id="protocol-https-btn" class="btn btn-primary h-11 text-base"></button>
+                <button id="protocol-http-btn" class="btn btn-outline h-11 text-base"></button>
+                <button class="btn btn-ghost h-11 text-base" onclick="document.getElementById('protocol-modal').close()">Cancel</button>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop"><button data-i18n="admin.close">Close</button></form>
+    </dialog>
+
     <div id="alertContainer"></div>
     <input type="hidden" id="qrCodeData">
 
@@ -697,16 +711,15 @@
 
             function copyDecodedText() {
                 const text = document.getElementById('decoded-text').textContent;
-                navigator.clipboard.writeText(text)
-                    .then(() => {
+                copyToClipboard(text).then(ok => {
+                    if (ok) {
                         document.getElementById('newTarget').value = text;
                         document.getElementById('newTarget').scrollIntoView({ behavior: 'smooth', block: 'center' });
                         showAlert(I18N.t('app.copySuccess'), 'success');
-                    })
-                    .catch(err => {
-                        console.error('Copy failed:', err);
+                    } else {
                         showAlert(I18N.t('app.copyFail'));
-                    });
+                    }
+                });
             }
 
             // Unified Toast / Alert. Mirrors common.js but with localized messages.
@@ -717,6 +730,13 @@
                     container.id = 'alertContainer';
                     document.body.appendChild(container);
                 }
+                // A <dialog> opened with showModal() lives in the top layer, so a
+                // toast in <body> would render *behind* it. Move the container into
+                // the currently open dialog (non-inert, top-layer) when present,
+                // so the alert floats above the modal. position:fixed still anchors
+                // to the viewport because <dialog> isn't a containing block for it.
+                const activeDialog = document.querySelector('dialog[open]');
+                (activeDialog || document.body).appendChild(container);
                 const kind = (type === 'success' || type === 'warning' || type === 'info') ? type : 'error';
                 const alert = document.createElement('div');
                 alert.className = 'alert ' + (kind === 'success' ? 'alert-success' : kind === 'warning' ? 'alert-warning' : kind === 'info' ? 'alert-info' : 'alert-error') + ' shadow-lg min-w-[300px] alert-enter';
@@ -747,7 +767,10 @@
                 RESERVED_PATH: 'app.reservedPath',
                 INVALID_EXPIRY: 'app.invalidExpiry',
                 WECHAT_REQUIRES_QR: 'app.wechatImageRequired',
-                INVALID_INPUT: 'app.invalidInput'
+                INVALID_INPUT: 'app.invalidInput',
+                PATH_INVALID: 'app.pathInvalid',
+                TARGET_INVALID: 'app.targetInvalid',
+                INPUT_TOO_LONG: 'app.inputTooLong'
             };
             function apiErrorMessage(data) {
                 const code = (data && (data.error || data.message)) || '';
@@ -837,6 +860,13 @@
                 if (!path) { showAlert(I18N.t('app.pathRequired')); return; }
                 if (!/^[a-zA-Z0-9-_]+$/.test(path)) { showAlert(I18N.t('app.pathInvalid')); return; }
                 if (!target) { showAlert(I18N.t('app.targetRequired')); return; }
+                // If the target has no scheme, let the user choose https/http.
+                let finalTarget = target;
+                if (!/^https?:\/\//i.test(target)) {
+                    const prefixed = await askProtocolPrefix(target);
+                    if (prefixed === null) return; // cancelled
+                    finalTarget = prefixed;
+                }
                 if (isWechat && !qrCodeData) { showAlert(I18N.t('app.wechatImageRequired')); return; }
 
                 try {
@@ -844,18 +874,37 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            name, path, target, expiry, enabled, isWechat,
+                            name, path, target: finalTarget, expiry, enabled, isWechat,
                             qrCodeData: isWechat ? qrCodeData : null
                         })
                     });
                     if (response.status === 401) { window.location.href = '/login'; return; }
+                    const result = await response.json();
                     if (!response.ok) {
-                        const data = await response.json();
-                        showAlert(apiErrorMessage(data));
+                        showAlert(apiErrorMessage(result));
                         return;
                     }
-                    showAlert(I18N.t('app.addSuccess'), 'success');
-                    location.reload();
+                    // Show the result first, then refresh the list WITHOUT a full
+                    // page reload — otherwise the alert would be wiped instantly.
+                    showAlert(
+                        result.targetNormalized ? I18N.t('app.targetAutoHttps') : I18N.t('app.addSuccess'),
+                        result.targetNormalized ? 'info' : 'success'
+                    );
+                    // Reset the add form.
+                    document.getElementById('newName').value = '';
+                    document.getElementById('newPath').value = '';
+                    document.getElementById('newTarget').value = '';
+                    document.getElementById('newExpiry').value = '';
+                    document.getElementById('newEnabled').checked = true;
+                    const addWechat = document.getElementById('newIsWechat');
+                    addWechat.checked = false;
+                    addWechat.disabled = true;
+                    document.getElementById('newTarget').readOnly = false;
+                    document.getElementById('qr-result')?.classList.add('hidden');
+                    document.getElementById('decoded-text').textContent = '';
+                    const qrc = document.getElementById('qrCodeData');
+                    if (qrc) qrc.value = '';
+                    await loadMappings();
                 } catch (error) {
                     console.error('Failed to add QR link:', error);
                     showAlert(I18N.t('app.addNetworkFail'));
@@ -973,17 +1022,83 @@
                 return card;
             }
 
+            // Robust clipboard copy. navigator.clipboard works only in secure
+            // contexts (HTTPS / localhost); on plain-http LAN access it is
+            // unavailable, so we fall back to a hidden textarea + execCommand.
+            function fallbackCopyText(text) {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.setAttribute('readonly', '');
+                ta.style.position = 'fixed';
+                ta.style.top = '0';
+                ta.style.left = '0';
+                ta.style.width = '1px';
+                ta.style.height = '1px';
+                ta.style.opacity = '0';
+                // When a <dialog> is open via showModal(), the rest of the
+                // document becomes "inert" and a textarea appended to <body>
+                // cannot be selected/copied. Append the helper to the active
+                // (non-inert) dialog instead, so execCommand('copy') works.
+                const host = document.querySelector('dialog[open]') || document.body;
+                host.appendChild(ta);
+                ta.focus();
+                ta.select();
+                ta.setSelectionRange(0, ta.value.length);
+                let ok = false;
+                try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+                host.removeChild(ta);
+                return ok;
+            }
+
+            function copyToClipboard(text) {
+                return new Promise((resolve) => {
+                    if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+                        navigator.clipboard.writeText(text)
+                            .then(() => resolve(true))
+                            .catch(() => resolve(fallbackCopyText(text)));
+                    } else {
+                        resolve(fallbackCopyText(text));
+                    }
+                });
+            }
+
             function copyTextToClipboard(text, successMsg) {
                 if (!text || text === '-') {
                     showAlert(I18N.t('app.nothingToCopy'), 'warning');
                     return;
                 }
-                navigator.clipboard.writeText(text)
-                    .then(() => showAlert(successMsg || I18N.t('app.copySuccess'), 'success'))
-                    .catch(err => {
-                        console.error('Copy failed:', err);
-                        showAlert(I18N.t('app.copyFail'));
-                    });
+                copyToClipboard(text).then(ok => {
+                    showAlert(ok ? (successMsg || I18N.t('app.copySuccess')) : I18N.t('app.copyFail'), ok ? 'success' : 'error');
+                });
+            }
+
+            // Ask the user how to prefix a scheme-less target URL.
+            // Resolves to the prefixed URL, or null if cancelled.
+            function askProtocolPrefix(rawTarget) {
+                return new Promise((resolve) => {
+                    const modal = document.getElementById('protocol-modal');
+                    const httpsBtn = document.getElementById('protocol-https-btn');
+                    const httpBtn = document.getElementById('protocol-http-btn');
+                    document.getElementById('protocol-modal-title').textContent = I18N.t('app.targetNoScheme');
+                    document.getElementById('protocol-modal-body').textContent = I18N.t('app.targetNoSchemeHint');
+                    httpsBtn.textContent = I18N.t('app.prefixHttps');
+                    httpBtn.textContent = I18N.t('app.prefixHttp');
+                    let settled = false;
+                    const settle = (val) => {
+                        if (settled) return;
+                        settled = true;
+                        httpsBtn.onclick = null;
+                        httpBtn.onclick = null;
+                        modal.removeEventListener('close', onClose);
+                        if (modal.open) modal.close();
+                        resolve(val);
+                    };
+                    const onClose = () => settle(null); // ESC / backdrop / Cancel
+                    httpsBtn.onclick = () => settle('https://' + rawTarget);
+                    httpBtn.onclick = () => settle('http://' + rawTarget);
+                    modal.addEventListener('close', onClose);
+                    modal.showModal();
+                });
             }
 
             function showDetailModal(path, mapping) {
@@ -1130,6 +1245,14 @@
                 if (!/^[a-zA-Z0-9-_]+$/.test(newPath)) { showAlert(I18N.t('app.pathInvalid')); return; }
                 if (!newTarget) { showAlert(I18N.t('app.targetRequired')); return; }
 
+                // If the target has no scheme, let the user choose https/http.
+                let finalTarget = newTarget;
+                if (!/^https?:\/\//i.test(newTarget)) {
+                    const prefixed = await askProtocolPrefix(newTarget);
+                    if (prefixed === null) return; // cancelled
+                    finalTarget = prefixed;
+                }
+
                 const od = currentEditOriginalData;
                 const hasChanges = newName !== od.name || newPath !== od.path || newTarget !== od.target
                     || newExpiry !== od.expiry || newEnabled !== od.enabled || newIsWechat !== od.isWechat;
@@ -1146,17 +1269,20 @@
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            originalPath: od.path, path: newPath, target: newTarget,
+                            originalPath: od.path, path: newPath, target: finalTarget,
                             name: newName, expiry: newExpiry || null, enabled: newEnabled,
                             isWechat: newIsWechat, qrCodeData: serverData.qrCodeData
                         })
                     });
+                    const updateData = await updateResponse.json();
                     if (!updateResponse.ok) {
-                        const data = await updateResponse.json();
-                        showAlert(apiErrorMessage(data));
+                        showAlert(apiErrorMessage(updateData));
                         return;
                     }
-                    showAlert(I18N.t('app.updateSuccess'), 'success');
+                    showAlert(
+                        updateData.targetNormalized ? I18N.t('app.targetAutoHttps') : I18N.t('app.updateSuccess'),
+                        updateData.targetNormalized ? 'info' : 'success'
+                    );
                     document.getElementById('edit-modal').close();
                     await loadMappings();
                     const expiringBtn = document.getElementById('showExpiringBtn');

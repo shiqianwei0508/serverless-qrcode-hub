@@ -305,6 +305,45 @@ async function listMappings(page = 1, pageSize = 10, search = '') {
   };
 }
 
+// Ensure a target URL has an explicit scheme. A bare host like "www.baidu.com"
+// has no protocol, which breaks both redirects and stored data. We auto-prepend
+// "https://" when no scheme is present.
+function normalizeTarget(target) {
+  if (!target) return target;
+  return /^https?:\/\//i.test(target) ? target : 'https://' + target;
+}
+
+// Input limits — mirror the frontend rules so the API cannot be bypassed by
+// calling it directly (the frontend only checks format; the backend must too).
+const PATH_MAX = 64;
+const NAME_MAX = 128;
+const TARGET_MAX = 2048;
+const PATH_RE = /^[a-zA-Z0-9-_]+$/;
+
+// Validate path/target/name before persisting. `target` is expected to already
+// carry a scheme because normalizeTarget() runs upstream in the API handler.
+function validateMappingInput(path, target, name, expiry) {
+  if (!PATH_RE.test(path)) {
+    throw new Error('PATH_INVALID');
+  }
+  if (path.length > PATH_MAX || (name && name.length > NAME_MAX) || target.length > TARGET_MAX) {
+    throw new Error('INPUT_TOO_LONG');
+  }
+  // Target must be a parseable http(s) URL — reject javascript:, data:, etc.
+  let parsed;
+  try {
+    parsed = new URL(target);
+  } catch (e) {
+    throw new Error('TARGET_INVALID');
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('TARGET_INVALID');
+  }
+  if (expiry && isNaN(Number(expiry))) {
+    throw new Error('INVALID_EXPIRY');
+  }
+}
+
 async function createMapping(path, target, name, expiry, enabled = true, isWechat = false, qrCodeData = null) {
   if (!path || !target || typeof path !== 'string' || typeof target !== 'string') {
     throw new Error('INVALID_INPUT');
@@ -314,6 +353,8 @@ async function createMapping(path, target, name, expiry, enabled = true, isWecha
   if (banPath.includes(path)) {
     throw new Error('RESERVED_PATH');
   }
+
+  validateMappingInput(path, target, name, expiry);
 
   if (expiry && isNaN(Number(expiry))) {
     throw new Error('INVALID_EXPIRY');
@@ -373,6 +414,8 @@ async function updateMapping(originalPath, newPath, target, name, expiry, enable
   if (banPath.includes(newPath)) {
     throw new Error('RESERVED_PATH');
   }
+
+  validateMappingInput(newPath, target, name, expiry);
 
   if (expiry && isNaN(Number(expiry))) {
     throw new Error('INVALID_EXPIRY');
@@ -624,8 +667,9 @@ export default {
           // Create a mapping
           if (request.method === 'POST') {
             const data = await request.json();
-            await createMapping(data.path, data.target, data.name, data.expiry, data.enabled, data.isWechat, data.qrCodeData);
-            return new Response(JSON.stringify({ success: true }), {
+            const target = normalizeTarget(data.target);
+            await createMapping(data.path, target, data.name, data.expiry, data.enabled, data.isWechat, data.qrCodeData);
+            return new Response(JSON.stringify({ success: true, targetNormalized: target !== data.target }), {
               headers: { 'Content-Type': 'application/json' }
             });
           }
@@ -633,17 +677,18 @@ export default {
           // Update a mapping
           if (request.method === 'PUT') {
             const data = await request.json();
+            const target = normalizeTarget(data.target);
             await updateMapping(
               data.originalPath,
               data.path,
-              data.target,
+              target,
               data.name,
               data.expiry,
               data.enabled,
               data.isWechat,
               data.qrCodeData
             );
-            return new Response(JSON.stringify({ success: true }), {
+            return new Response(JSON.stringify({ success: true, targetNormalized: target !== data.target }), {
               headers: { 'Content-Type': 'application/json' }
             });
           }
@@ -883,8 +928,14 @@ export default {
             });
           }
 
-          // Non-WeChat links perform a normal redirect
-          return Response.redirect(mapping.target, 302);
+          // Non-WeChat links perform a normal redirect.
+          // Response.redirect requires an absolute URL; a bare host like
+          // "www.baidu.com" has no scheme and would throw "Unable to parse URL".
+          // Prepend https:// when no scheme is present.
+          const target = /^https?:\/\//i.test(mapping.target)
+            ? mapping.target
+            : 'https://' + mapping.target;
+          return Response.redirect(target, 302);
         }
         return new Response('Not Found', { status: 404 });
       } catch (error) {

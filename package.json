@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "echo 'Cron triggered at http://localhost:8787/__scheduled?cron=*+*+*+*+*' && wrangler dev --ip 0.0.0.0 --env dev --test-scheduled",
+    "dev:local": "wrangler dev --local --env dev --test-scheduled --ip 0.0.0.0 --port 8787",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {

@@ -128,6 +128,10 @@
 > ```
 > 本仓库已将 `wrangler.toml` 的 `name` 设为 `serverless-qrcode-hub-dev`，与 CI 期望一致（部署地址：`https://serverless-qrcode-hub-dev.sqwei2012.workers.dev`）。你 Fork 后请根据自己在 Cloudflare 创建的 Worker 名称修改此 `name`，以避免该警告。
 
+## 其他部署方式
+
+除了上文的 Cloudflare 云端流程，本项目还支持通过 Docker 或本机 `wrangler dev --local` 完全离线运行。三种方式的详细说明见 [docs/zh/deployment.md](./deployment.md)。
+
 ## TODO
 
 - [x] 实现定时检查过期短链功能
