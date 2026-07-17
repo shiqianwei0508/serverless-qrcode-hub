@@ -8,6 +8,12 @@ Tired of WeChat group QR codes changing constantly, I built this tool to generat
 >
 > Guide for migrating from the old KV version to the new one: [MIGRATE.md](./MIGRATE.md)
 
+## Acknowledgments
+
+This project is a fork/enhancement built on top of [xxnuo/serverless-qrcode-hub](https://github.com/xxnuo/serverless-qrcode-hub) — the original, serverless WeChat-group live-code / short-link tool by [@xxnuo](https://github.com/xxnuo), built on Cloudflare Workers + D1 (Apache-2.0 licensed, latest release v2.0.1).
+
+**Special thanks to xxnuo** for creating and openly sharing the original project. This repository adds several enhancements on that foundation: HMAC-signed auth cookies, real expired-data cleanup, split WeChat-QR / normal-link creation flows, Docker/offline deployment, and 8-language i18n.
+
 ## Features
 
 - 🔗 Generate permanent short links that point to WeChat group QR codes
@@ -126,23 +132,10 @@ This project is configured with Cloudflare Workers Builds. After pushing code to
 > ```
 > [WARNING] Failed to match Worker name. Your config file is using the Worker name "xxx", but the CI system expected "yyy". Overriding using the CI provided Worker name.
 > ```
-> This repository has set `wrangler.toml`'s `name` to `serverless-qrcode-hub-dev`, matching CI's expectation (deployment address: `https://serverless-qrcode-hub-dev.sqwei2012.workers.dev`). After forking, please modify this `name` according to the Worker name you created on Cloudflare to avoid the warning.
+> This repository has set `wrangler.toml`'s `name` to `serverless-qrcode-hub-dev`, matching CI's expectation (deployment address: `https://<your-subdomain>.workers.dev`). After forking, please modify this `name` according to the Worker name you created on Cloudflare to avoid the warning.
 
 ## Other deployment options
 
 Besides the Cloudflare cloud workflow above, this project also supports running fully offline via Docker, or directly on your machine with `wrangler dev --local`. See [docs/deployment.md](./docs/deployment.md) for all three methods (Cloudflare cloud / Docker / local offline dev).
-
-## TODO
-
-- [x] Implement scheduled check for expired short links
-  - [x] Automatically check expired short links
-  - [ ] Send email notification to admin
-  - [x] Automatically clean up expired data
-- [ ] Add visit statistics
-- [ ] Support batch import/export
-- [ ] Support multi-tenancy
-- [x] Support multi-language
-- [ ] Support multiple Serverless platforms
-- [ ] Mobile quick-update QR feature
 
 Issues and Pull Requests are welcome!

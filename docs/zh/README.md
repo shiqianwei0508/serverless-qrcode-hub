@@ -8,6 +8,12 @@
 >
 > 旧版 KV 迁移到新版的指南: [MIGRATE.md](../../MIGRATE.md)
 
+## 致谢
+
+本项目基于 [@xxnuo](https://github.com/xxnuo) 原创并持续维护的开源项目 [serverless-qrcode-hub](https://github.com/xxnuo/serverless-qrcode-hub) 进行二次开发。原项目是无需服务器、基于 Cloudflare Workers + D1 的微信群活码/短链工具（采用 Apache-2.0 许可，最新版本 v2.0.1）。
+
+**特别感谢 xxnuo** 开源了优秀的原始项目！本仓库在其基础上增加了若干增强：HMAC 签名鉴权 Cookie、真实过期数据清理、微信活码/普通链接拆分流程、Docker/离线部署，以及 8 语言国际化。
+
 ## 功能特性
 
 - 🔗 生成永久短链接，指向微信群二维码
@@ -126,23 +132,10 @@
 > ```
 > [WARNING] Failed to match Worker name. Your config file is using the Worker name "xxx", but the CI system expected "yyy". Overriding using the CI provided Worker name.
 > ```
-> 本仓库已将 `wrangler.toml` 的 `name` 设为 `serverless-qrcode-hub-dev`，与 CI 期望一致（部署地址：`https://serverless-qrcode-hub-dev.sqwei2012.workers.dev`）。你 Fork 后请根据自己在 Cloudflare 创建的 Worker 名称修改此 `name`，以避免该警告。
+> 本仓库已将 `wrangler.toml` 的 `name` 设为 `serverless-qrcode-hub-dev`，与 CI 期望一致（部署地址：`https://<你的子域名>.workers.dev`）。你 Fork 后请根据自己在 Cloudflare 创建的 Worker 名称修改此 `name`，以避免该警告。
 
 ## 其他部署方式
 
 除了上文的 Cloudflare 云端流程，本项目还支持通过 Docker 或本机 `wrangler dev --local` 完全离线运行。三种方式的详细说明见 [docs/zh/deployment.md](./deployment.md)。
-
-## TODO
-
-- [x] 实现定时检查过期短链功能
-  - [x] 自动检查过期的短链接
-  - [ ] 发送邮件通知管理员
-  - [x] 自动清理过期数据
-- [ ] 添加访问统计功能
-- [ ] 支持批量导入导出
-- [ ] 支持多租户
-- [x] 支持多语言
-- [ ] 支持多 Serverless 平台
-- [ ] 手机端快捷更新二维码功能
 
 欢迎提交 Issue 和 Pull Request！
