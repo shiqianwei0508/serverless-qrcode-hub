@@ -21,14 +21,12 @@
   }
 })();
 
-/* 2. Cycle the theme: system -> light -> dark -> system. */
+/* 2. Toggle the theme directly between light and dark on every click. */
 function toggleTheme() {
-  const current = localStorage.getItem('theme') || 'system';
-  const order = { system: 'light', light: 'dark', dark: 'system' };
-  const next = order[current] || 'system';
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
   localStorage.setItem('theme', next);
-  const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  document.documentElement.setAttribute('data-theme', next === 'system' ? (isDark ? 'dark' : 'light') : next);
+  document.documentElement.setAttribute('data-theme', next);
   updateThemeIcon(next);
 }
 
@@ -55,7 +53,7 @@ if (window.matchMedia) {
 
 /* 5. Initialize the theme button once the DOM is ready. */
 function initThemeToggle() {
-  updateThemeIcon(localStorage.getItem('theme') || 'system');
+  updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'light');
   const btn = document.getElementById('themeToggleBtn');
   if (btn) btn.addEventListener('click', toggleTheme);
 }
