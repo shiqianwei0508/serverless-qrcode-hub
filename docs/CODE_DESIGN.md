@@ -27,10 +27,9 @@ This document explains `serverless-qrcode-hub` file by file, function by functio
 
 - Users create **short links** or **WeChat group live codes** through an admin panel;
 - When a visitor opens a short link: a normal link performs a `302` redirect, while a WeChat live code renders the original QR-code page for long-press recognition;
-- Built-in password Cookie authentication;
-- A scheduled task (cron) that checks soon-to-expire / already-expired links and logs them;
-- Dark / light / system-following three-state theme switching;
-- Historical compatibility logic for migrating from KV to D1 is preserved (currently disabled).
+- Built-in password Cookie authentication (HMAC-signed token, not plaintext);
+- A scheduled task (cron) that checks soon-to-expire / already-expired links, logs them, and physically deletes expired records;
+- Dark / light / system-following three-state theme switching.
 
 ### 1.2 Tech Stack
 
@@ -50,7 +49,7 @@ This document explains `serverless-qrcode-hub` file by file, function by functio
 serverless-qrcode-hub/
 ├── index.js            # Worker entry: routing, auth, API dispatch (imports src/*)
 ├── src/                # backend modules (bundled into one Worker by esbuild)
-│   ├── state.js        # shared runtime state: DB / KV_BINDING + initState(env)
+│   ├── state.js        # shared runtime state: DB + initState(env)
 │   ├── util.js         # escapeHtml()
 │   ├── db.js           # data layer: schema/migration, CRUD, validation, banPath
 │   └── pages.js        # public pages: PUBLIC_I18N, pickLang, expired/WeChat renderers
@@ -131,7 +130,7 @@ Indexes:
 - **Write path**: the frontend `admin.html` calls `/api/mapping` (POST/PUT/DELETE) → `createMapping` / `updateMapping` / `deleteMapping` → D1 write; `/api/mapping/pin` POST → `pinMapping` → updates the `pinned` column (global pin).
 - **Read path (admin)**: `/api/mappings` (paginated list), `/api/mapping?path=` (single record), `/api/expiring-mappings` (expiry statistics).
 - **Read path (visitor)**: any non-`api/` path → query `mappings` → decide 302 redirect / live-code page / expired page / 404.
-- **Auth**: login writes `Cookie: token=plaintext password`; subsequent APIs are validated via `verifyAuthCookie`.
+- **Auth**: login writes a signed `auth` Cookie (`issuedAt.<hmac>`, see 2.3); subsequent APIs are validated via `verifyAuthCookie` → `verifyAuthToken`.
 
 ---
 
@@ -140,7 +139,6 @@ Indexes:
 ### 2.1 Module-level Variables and `banPath`
 
 ```js
-let KV_BINDING;
 let DB;
 const banPath = [
   'login', 'admin', '__total_count',
@@ -152,7 +150,7 @@ const banPath = [
 ];
 ```
 
-- `KV_BINDING` / `DB`: module-level mutable variables, assigned from `env` at the start of each request / scheduled task (see the `fetch` and `scheduled` entry points). **Note**: `KV_BINDING` is NOT configured with `[kv_namespaces]` in `wrangler.toml`, so at runtime it is `undefined`; it is currently used only by `migrateFromKV()`, which is never called (see 2.10 / 6.2).
+- `DB`: module-level mutable variable, assigned from `env` by `initState(env)` at the start of each request / scheduled task (see `fetch` and `scheduled` entry points). `state.js` holds the single `DB` binding shared across all `src/*` modules via ES-module live binding.
 - `banPath`: list of system-reserved paths. Used in two places:
   1. `listMappings` queries with `WHERE path NOT IN (...)` to avoid showing reserved names in the admin list;
   2. `createMapping` / `deleteMapping` / `updateMapping` reject these names (to avoid conflicts with static assets / routes).
@@ -174,59 +172,59 @@ async function initDatabase() { ... }
   5. Sequentially `CREATE INDEX IF NOT EXISTS` the three indexes (`idx_expiry`, `idx_created_at`, `idx_enabled_expiry`).
   6. **Timestamp data migration**: detect whether `expiry` is in the old `YYYY-MM-DD` format (GLOB pattern); if so, convert each row to a millisecond timestamp (`new Date(dateStr + 'T00:00:00Z').getTime()`). Also detect whether `created_at` is in the old `YYYY-MM-DD HH:MM:SS` format (`CURRENT_TIMESTAMP` string) and convert to `new Date(str + 'Z').getTime()`. Once migrated, all old-format rows become pure numeric timestamps and will not trigger again.
 - **Design intent**: implement a **forward-compatible table migration** — an old table (only the first 7 columns, no `isWechat`/`qrCodeData`) automatically gains columns on first run, avoiding manual table changes on every deployment.
-- **Call timing**: both the `fetch` and `scheduled` entry points `await initDatabase()` before doing business work. Because everything uses `IF NOT EXISTS` / existence checks, repeated calls are safe and idempotent.
+- **Call timing**: both the `fetch` and `scheduled` entry points `await initDatabase()` before doing business work. A module-level `dbInitialized` flag makes the function a one-time, idempotent setup: after the first successful run the DDL round-trips are skipped entirely (the `IF NOT EXISTS` / existence checks already made it safe, but the flag removes the per-request cost). Repeated calls are therefore harmless.
 - **Boundary**: `PRAGMA` and `ALTER TABLE` are both supported on D1; if the table is already at the latest schema, the column-adding branches are skipped and only indexes are recreated (index creation is itself idempotent). Data migration runs only once when old-format data is detected (via GLOB pattern); afterward all rows are timestamps and will not trigger again.
 
-### 2.3 Cookie-related Functions
+### 2.3 Auth Cookie (HMAC-signed)
 
-#### 2.3.1 `verifyAuthCookie(request, env)`
+The admin password is **never** stored in the Cookie. On login the Worker issues a signed token `issuedAt.<hmac>` (see `src/util.js`): `issuedAt` is `Date.now()` and the HMAC-SHA256 of `issuedAt` is keyed by `env.PASSWORD` (no extra secret to configure). The cookie name is `auth`. Verification recomputes the HMAC and also rejects tokens older than `Max-Age` (1 day), so a captured token cannot be replayed indefinitely.
+
+#### 2.3.1 `verifyAuthToken(token, secret)`
 
 ```js
-function verifyAuthCookie(request, env) {
-  const cookie = request.headers.get('Cookie') || '';
-  const authToken = cookie.split(';').find(c => c.trim().startsWith('token='));
-  if (!authToken) return false;
-  return authToken.split('=')[1].trim() === env.PASSWORD;
+export async function verifyAuthToken(token, secret) {
+  const parts = (token || '').split('.');
+  if (parts.length !== 2) return false;
+  const [issuedAt, sig] = parts;
+  if (!Number.isFinite(Number(issuedAt))) return false;
+  if (Date.now() - Number(issuedAt) > COOKIE_MAX_AGE * 1000) return false;
+  const expected = await hmacSign(issuedAt, secret);
+  return safeEqual(expected, sig);   // constant-time compare
 }
 ```
 
-- **Arguments**: `request` (Request object, reads the `Cookie` header); `env` (contains `PASSWORD`).
-- **Logic**:
-  1. Get the `Cookie` header; empty → `''`.
-  2. Split by `;`; find the segment starting with `token=` (after `.trim()`).
-  3. Not found → return `false` (not logged in).
-  4. Found → take what is after `=` (`.split('=')[1]`) and `.trim()`, then strictly compare with `env.PASSWORD`.
+- **Arguments**: `token` (the `auth` cookie value); `secret` (the admin `PASSWORD`).
+- **Logic**: split into `issuedAt.sig`; reject wrong shape, non-numeric/old `issuedAt`, or a signature that does not match `hmacSign(issuedAt, secret)`. Uses `crypto.subtle` (available in the Workers runtime).
 - **Return**: boolean.
-- **Security note**: the `token` value is the **plaintext password** (see 2.11 login endpoint); here it is compared in plaintext with no signature / hash / expiry check (the Cookie's `Max-Age` controls expiry). See [6.1](#61-authentication-security).
 
-#### 2.3.2 `setAuthCookie(password)`
+#### 2.3.2 `authCookieHeader(secret)` / `clearAuthCookieHeader()`
 
 ```js
-function setAuthCookie(password) {
-  return {
-    'Set-Cookie': `token=${password}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`,
-    'Content-Type': 'application/json'
-  };
+export async function authCookieHeader(secret) {
+  const token = await makeAuthToken(secret);     // issuedAt + '.' + HMAC
+  return `auth=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${COOKIE_MAX_AGE}`;
+}
+export function clearAuthCookieHeader() {
+  return `auth=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`;
 }
 ```
 
-- **Arguments**: `password` (the plaintext password).
-- **Returns**: a response-header object. `Set-Cookie` writes `token=password`, scope `/`, `HttpOnly` (not readable by JS), `SameSite=Strict`, `Max-Age=86400` (1 day). `Content-Type: application/json`.
-- **Usage**: returned as a response header on successful login (see 2.11).
+- **`authCookieHeader`**: builds the signed token via `makeAuthToken` then returns the `Set-Cookie` header (scope `/`, `HttpOnly`, `SameSite=Strict`, `Max-Age=86400`). Used as the login response header.
+- **`clearAuthCookieHeader`**: returns a `Set-Cookie` that expires the `auth` cookie immediately, implementing logout.
 
-#### 2.3.3 `clearAuthCookie()`
+#### 2.3.3 `verifyAuthCookie(request, env)`
 
 ```js
-function clearAuthCookie() {
-  return {
-    'Set-Cookie': 'token=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0',
-    'Content-Type': 'application/json'
-  };
+async function verifyAuthCookie(request, env) {
+  const cookie = request.headers.get('Cookie') || '';
+  const authCookie = cookie.split(';').find(c => c.trim().startsWith('auth='));
+  if (!authCookie) return false;
+  const token = authCookie.split('=')[1].trim();
+  return verifyAuthToken(token, env.PASSWORD);
 }
 ```
 
-- **Arguments**: none.
-- **Returns**: a response-header object. `Max-Age=0` immediately invalidates the Cookie (equivalent to deletion), implementing logout (see 2.11).
+- Thin wrapper used by the API layer: extracts the `auth` cookie and delegates to `verifyAuthToken`. Because the token is signed with `PASSWORD`, the old plaintext cookie format is automatically rejected (wrong shape), giving a clean security upgrade with no migration step.
 
 ### 2.4 Database Operation Functions
 
@@ -267,11 +265,8 @@ async function createMapping(path, target, name, expiry, enabled = true, isWecha
 ```
 
 - **Arguments**: the full set of mapping fields.
-- **Validation** (any failure `throw new Error`):
-  1. `!path || !target || non-string type` → `Invalid input`.
-  2. `banPath.includes(path)` → `RESERVED_PATH` ("This short link name is reserved by the system, please choose another").
-  3. `expiry` present and `isNaN(Date.parse(expiry))` → `INVALID_EXPIRY` (only checks parseability, not whether it is in the past).
-  4. `isWechat && !qrCodeData` → `WECHAT_REQUIRES_QR` ("WeChat QR code must provide the original QR data").
+- **Validation**: lightweight guards (path/target presence, `RESERVED_PATH`) plus a single call to `validateMappingInput(path, target, name, expiry, isWechat, qrCodeData)`, which centralizes all remaining rules (path regex + length limits, strictly-http(s) target, `INVALID_EXPIRY` for unparseable expiry, and for WeChat entries: `WECHAT_REQUIRES_QR` when `qrCodeData` is empty, `QR_INVALID` when it is not a `data:image/` or `http(s)://` value, and `QR_TOO_LARGE` when it exceeds `QR_MAX` = 1 MiB). The upstream API handler runs `normalizeTarget` first so `target` already carries a scheme.
+- **Failure** → `throw new Error` with one of the stable codes above.
 - **Write**: `INSERT INTO mappings (path, target, name, expiry, enabled, isWechat, qrCodeData) VALUES (?, ?, ?, ?, ?, ?, ?)`. Where:
   - `name` → `name || null`
   - `expiry` → `expiry || null`
@@ -279,7 +274,7 @@ async function createMapping(path, target, name, expiry, enabled = true, isWecha
   - `isWechat` → boolean to `1/0`
   - `qrCodeData` → original value (DataURL for WeChat)
 - **Boundary**: `path` is the primary key; if it already exists, D1 throws a unique-constraint error, caught by the upper `fetch` try/catch (not `Invalid input`, so mapped to HTTP 500, see 2.11).
-- **Caller**: only the `fetch` POST `/api/mapping` and `migrateFromKV()`.
+- **Caller**: only the `fetch` POST `/api/mapping`.
 
 #### 2.4.3 `deleteMapping(path)`
 
@@ -352,40 +347,32 @@ async function getExpiringMappings() { ... }
   - `expiry` timestamp ≤ `now + 3 days` → `expiring`;
   - `expiry` timestamp > `now + 3 days` → filtered out by `WHERE CAST(expiry AS INTEGER) <= threeDaysLater`, not returned.
 - **Return structure**: iterate results, group by `status` into `{ expiring: [], expired: [] }`, each item containing `path/name/target/expiry/enabled/isWechat/qrCodeData`.
-- **Note**: the code comment and `scheduled` log text say "2 days", but the actual calculation window is **3 days** (see [6.3](#63-inconsistent-comment-and-logic)). This endpoint **does not use pagination parameters** and returns all matching records at once; the frontend `loadExpiringMappings` re-paginates on the client (see 4.17).
+- **Note**: the calculation window is **3 days** and the `scheduled` log text now correctly says "expiring in 3 days", so comment and logic are consistent. This endpoint **does not use pagination parameters** and returns all matching records at once; the frontend `loadExpiringMappings` re-paginates on the client (see 4.17).
 
-#### 2.4.6 `cleanupExpiredMappings(batchSize = 100)` — retained but unused
+#### 2.4.6 `cleanupExpiredMappings(batchSize = 100)`
 
 ```js
-async function cleanupExpiredMappings(batchSize = 100) { ... }
+async function cleanupExpiredMappings(batchSize = 100) { ... }   // returns number deleted
 ```
 
 - **Logic**: loop to delete `expiry < now` records in batches:
-  1. `SELECT path FROM mappings WHERE expiry IS NOT NULL AND expiry < ? LIMIT batchSize` (bind `now = new Date().toISOString()`).
+  1. `SELECT path FROM mappings WHERE expiry IS NOT NULL AND expiry < ? LIMIT batchSize` (bind `now = Date.now().toString()`, numeric comparison against the millisecond-timestamp column).
   2. Empty → `break`.
   3. Otherwise `DELETE FROM mappings WHERE path IN (...)`.
   4. If this batch size `< batchSize` → `break` (done).
-- **Status**: **currently not called by any route or scheduled task** (see [6.2](#62-unused-functions)).
+- **Return**: total number of rows deleted across all batches.
+- **Status**: **now called by `scheduled`** after the expiring/expired report is logged (see 2.6). The report lists enabled links inside the 3-day window; cleanup then physically removes everything past its `expiry` (including disabled entries), so expired short links stop resolving as 404.
 
-#### 2.4.7 `migrateFromKV()` — retained but unused
+#### 2.4.7 ~~`migrateFromKV()`~~ — removed
 
-```js
-async function migrateFromKV() { ... }
-```
-
-- **Logic**: migrate from KV to D1 in batches (historical compatibility):
-  1. `do ... while(cursor)` loop, `KV_BINDING.list({ cursor, limit: 1000 })`.
-  2. For each key: if not in `banPath`, then `KV_BINDING.get(key.name, { type: "json" })`, and if obtained call `createMapping(...)` (passing `target/name/expiry/enabled/isWechat/qrCodeData`).
-  3. A single failure `console.error` and skip, not affecting others.
-- **Status**: **currently never called**; and `KV_BINDING` is not configured in `wrangler.toml` (is `undefined`), so calling it would error immediately (see [6.2](#62-unused-functions)).
+The historical KV→D1 migration function (`migrateFromKV()`) and its `KV_BINDING` dependency have been **removed** from the codebase. The old KV-based version remains available as `README.v1.md` for reference, but the current D1-only code no longer carries any KV migration logic or `[kv_namespaces]` requirement.
 
 ### 2.5 `fetch(request, env)` — Request Entry
 
 ```js
 export default {
   async fetch(request, env) {
-    KV_BINDING = env.KV_BINDING;
-    DB = env.DB;
+    initState(env);          // populates the shared DB binding
     await initDatabase();
     const url = new URL(request.url);
     const path = url.pathname.slice(1);   // strip leading '/'
@@ -395,7 +382,7 @@ export default {
 };
 ```
 
-- **First step**: assign module-level `KV_BINDING` / `DB`, `await initDatabase()`.
+- **First step**: `initState(env)` populates the shared `DB` binding, then `await initDatabase()`.
 - `path = url.pathname.slice(1)`: e.g. `/admin.html` → `admin.html`, `/abc` → `abc`, `/` → `''`.
 
 #### 2.5.1 Root Path Redirect
@@ -425,7 +412,7 @@ if (path === 'api/login' && request.method === 'POST') {
 ```
 
 - Parse JSON, get `password`.
-- Equals `env.PASSWORD` → return `{ success: true }` with `Set-Cookie` (plaintext password).
+- Equals `env.PASSWORD` → return `{ success: true }` with the signed `auth` cookie from `authCookieHeader(env.PASSWORD)`.
 - Otherwise → 401 `Unauthorized` (plain text, no JSON body).
 
 **b) Logout `api/logout` POST (no pre-auth required)**
@@ -436,7 +423,7 @@ if (path === 'api/logout' && request.method === 'POST') {
 }
 ```
 
-- Return `{ success: true }`, `Set-Cookie` invalidates `token`.
+- Return `{ success: true }`, `Set-Cookie` invalidates the `auth` cookie (`clearAuthCookieHeader()`).
 
 **c) Auth Interception**
 
@@ -507,19 +494,21 @@ if (path) {
 
 ```js
 async scheduled(controller, env, ctx) {
-  KV_BINDING = env.KV_BINDING;
-  DB = env.DB;
+  initState(env);
   await initDatabase();
   const result = await getExpiringMappings();
   console.log(`Cron job report: Found ${result.expired.length} expired mappings`);
   if (result.expired.length > 0) console.log('Expired mappings:', JSON.stringify(result.expired, null, 2));
-  console.log(`Found ${result.expiring.length} mappings expiring in 2 days`);
+  console.log(`Found ${result.expiring.length} mappings expiring in 3 days`);
   if (result.expiring.length > 0) console.log('Expiring soon mappings:', JSON.stringify(result.expiring, null, 2));
+  // Physically delete expired mappings (reports above only cover the 3-day window).
+  const deleted = await cleanupExpiredMappings();
+  console.log(`Cleaned up ${deleted} expired mappings`);
 }
 ```
 
-- **Trigger**: `wrangler.toml` `[triggers] crons = ["0 2 */1 * *"]` (production, 2 AM daily) or the dev environment `*/10 * * * * *` (every 10 seconds, for local `--test-scheduled` debugging).
-- **Logic**: after init, call `getExpiringMappings()` and only `console.log` statistics and details to the Worker log. **It only records — it performs no cleanup or notification** (email notification is not implemented; see admin.html text and [6.4](#64-unimplemented-feature-declaration)).
+- **Trigger**: `wrangler.toml` `[triggers] crons = ["0 2 */1 * *"]` (production, daily at 02:00) or the dev environment `*/10 * * * * *` (every 10 seconds, for local `--test-scheduled` debugging).
+- **Logic**: after init, build the expiring/expired report via `getExpiringMappings()` and `console.log` statistics + details to the Worker log, then **physically delete** all records whose `expiry` is in the past via `cleanupExpiredMappings()` (the deleted count is logged). Email notification is not implemented (see admin.html text and [6.4](#64-unimplemented-feature-declaration)).
 
 ---
 
@@ -620,7 +609,7 @@ Identical logic to `login.html`, now unified in `dist/common.js` (loaded synchro
 const banPath = [ 'login','admin','__total_count','admin.html','login.html','daisyui@5.css','tailwindcss@4.js','qr-code-styling.js','zxing.js','robots.txt','wechat.svg','favicon.svg' ];
 ```
 
-- Synchronized with the backend `banPath`, used only for **frontend input-validation hints** (actual validation is on the backend; the frontend `addMapping` only validates the format `^[a-zA-Z0-9-_]+$`).
+- Mirrors the backend `banPath` (the backend in `src/db.js` is the single source of truth; the frontend copy is only for **input-validation hints** and should be kept in sync — see [6.6](#66-other-optimization-points)). The frontend split flows only validate the format `^[a-zA-Z0-9-_]+$`.
 
 ### 4.3 Page Structure (HTML)
 
@@ -632,7 +621,10 @@ const banPath = [ 'login','admin','__total_count','admin.html','login.html','dai
 - Hidden field `#qrCodeData`: stores the DataURL of the currently uploaded QR.
 - Navbar: title "Dashboard" (`#pageLabel` provided by `admin.dashboard`), language switcher `<div data-lang-switcher></div>`, theme button, logout button.
 - "Help" card (collapsible: usage steps, notes — note mentions "you will be notified by email when a link expires", but this is not yet implemented; see [6.4](#64-unimplemented-feature-declaration)).
-- "QR Decode & Link Creation" card: left (upload area `#qr-upload-area` / result `#qr-result` / copy `#copy-btn`), right (creation form: `#newName` / `#newPath` / `#newTarget` / `#newExpiry` / `#newEnabled` / `#newIsWechat` / `#addMappingBtn`).
+- Two **Add** buttons in the create area: `#addLinkBtn` ("Add Link", normal short link) and `#addWechatBtn` ("Add WeChat QR", requires a QR image). Each toggles its own panel:
+  - `#createLinkPanel`: normal-link form (`#linkName` / `#linkPath` / `#linkTarget` / `#linkExpiry` / `#linkEnabled` / `#addLinkSubmitBtn`).
+  - `#createWechatPanel`: WeChat form with an upload area `#qr-upload-area` / result `#qr-result` / decoded text `#decoded-text`, plus `#wName` / `#wPath` / `#wTarget` (read-only, auto-filled from the QR) / `#wExpiry` / `#wEnabled` / `#qrCodeData` (hidden) / `#addWechatSubmitBtn`.
+- A reusable QR-recognition widget is shared by the create-WeChat and edit flows via `setupQRUpload(areaId, fileInputId, resultId, decodedTextId, targetInputId, qrDataInputId)` (parameterized, no `newIsWechat` toggle).
 - "QR Link Management" card: title area (top-left "QR Link Management" title, right side a `join` group combining "search box + filter button group"); search box `#searchInput` (real-time fuzzy search, 300ms debounce) and one-click clear button `#clearSearchBtn` (shown only when there is input); filter button group (All `#showAllBtn` / Expiring soon `#showExpiringBtn` / Expired `#showExpiredBtn`, highlighted with `btn-primary`/`btn-warning`/`btn-error` respectively); below, `#loading`, `#skeleton` skeleton screen, table `#mappingsTableBody`, pagination controls (page size `#pageSize`, previous `#prevPage`, current `#currentPage`, next `#nextPage`).
 - **Multi-language**: all static text is declared via `data-i18n` / `data-i18n-ph` / `data-i18n-title` / `data-i18n-aria` / `data-i18n-tip` attributes, filled uniformly by `I18N.applyI18n()` on load and on language switch; dynamically generated content (cards, modals, alerts) is obtained via `I18N.t('admin.*'/'app.*')`.
 
@@ -671,12 +663,13 @@ Bind events, load data, and set filter button states:
 ```js
 function initializePage() {
   document.getElementById('logoutBtn').addEventListener('click', logout);
-  document.getElementById('addMappingBtn').addEventListener('click', addMapping);
-  setupQRUpload();
+  document.getElementById('addLinkBtn').addEventListener('click', toggleCreateLinkPanel);
+  document.getElementById('addWechatBtn').addEventListener('click', toggleCreateWechatPanel);
+  setupQRUpload('qr-upload-area', 'qr-file', 'qr-result', 'decoded-text', 'wTarget', 'qrCodeData');
+  setupQRUpload('editQrUploadArea', 'editQrFile', 'editQrResult', 'editDecodedText', 'editModalTarget', 'editQrCodeData');
   themeToggleBtn.addEventListener('click', toggleTheme);
   loadMappings();
   setupErrorHandling();
-  document.getElementById('newIsWechat').disabled = true;  // disable WeChat switch initially
 }
 ```
 
@@ -685,7 +678,7 @@ function initializePage() {
   - `showAllBtn` → add `btn-primary`, remove others, call `loadMappings()`.
   - `showExpiringBtn` → add `btn-warning`, call `loadExpiringMappings('expiring')`.
   - `showExpiredBtn` → add `btn-error`, call `loadExpiringMappings('expired')`.
-- **WeChat switch init**: `newIsWechat` is `disabled=true` by default; only enabled after a QR is uploaded and recognized (see 4.8).
+- **Creation flows are two independent features** (no `newIsWechat` toggle): "Add Link" opens `#createLinkPanel` (normal short link, no QR), "Add WeChat QR" opens `#createWechatPanel` (requires an uploaded QR image, target auto-filled and read-only). See 4.13.
 
 ### 4.7 `setupErrorHandling()` — Global Error Handling
 
@@ -697,23 +690,9 @@ window.addEventListener('unhandledrejection', function (event) {
 
 - Catches unhandled Promise rejections; if `reason.status===401`, redirect to the login page. Acts as a fallback for the explicit 401 redirects in each request.
 
-### 4.8 WeChat Switch Linkage
+### 4.8 QR Recognition → Target Auto-fill (no WeChat switch)
 
-```js
-document.getElementById('newIsWechat').addEventListener('change', function(e) {
-  const targetInput = document.getElementById('newTarget');
-  const decodedText = document.getElementById('decoded-text').textContent;
-  if (e.target.checked) {
-    targetInput.readOnly = true;
-    if (decodedText) targetInput.value = decodedText;
-  } else {
-    targetInput.readOnly = false;
-  }
-});
-```
-
-- Check "WeChat QR" → the target URL box becomes read-only and is filled with the recognized QR text (in the live-code scenario the target URL is the QR content itself).
-- Uncheck → editable again.
+The old `newIsWechat` checkbox is gone. Recognition now lives in `setupQRUpload` (parameterized by target input id). On a successful decode inside the **WeChat** flow the recognized text is written into the target input and that input is set `readOnly=true` (the WeChat short link's target *is* the QR content). The WeChat-vs-normal distinction is fixed at creation time by which "Add" button the user opened, so there is no runtime toggle to keep in sync.
 
 ### 4.9 QR Upload and Recognition
 
@@ -725,7 +704,7 @@ Binds: click upload area → trigger file selection; `dragover`/`dragleave`/`dro
 
 1. Empty → return.
 2. First file `file`: not an image (`!file.type.startsWith('image/')`) → `showAlert(I18N.t('app.imageRequired'))` and return.
-3. **Reset state**: clear `#qrCodeData`, hide `#qr-result`, clear `#decoded-text`, clear `#newTarget`; WeChat switch `checked=false`, `disabled=true`, target box `readOnly=false`.
+3. **Reset state**: clear the QR data input (`#qrCodeData` in the create flow, `#editQrCodeData` in the edit flow), hide `#qr-result`, clear `#decoded-text`, clear the target input, and restore its `readOnly=false`.
 4. `FileReader.readAsDataURL(file)` → `onload`: create an `Image`, on `img.onload` call `decodeQR(img)`, and store `e.target.result` (image DataURL) into `#qrCodeData` (for WeChat live-code submission).
 
 #### 4.9.3 `decodeQR(img)` — Core Recognition
@@ -753,8 +732,7 @@ async function decodeQR(img) {
 - **Decode**: `ZXing.BrowserMultiFormatReader().decodeFromImageUrl(imageUrl)`.
 - **Success branch**:
   - Write `decoded-text`, show `#qr-result`, fill `newTarget`;
-  - Enable `newIsWechat` (`disabled=false`);
-  - If `decodedText.startsWith('https://weixin.qq.com/')` → auto-check the WeChat switch + target box `readOnly=true`;
+  - For the WeChat flow, set the target input `readOnly=true` and fill it with the decoded text (the WeChat live-code target is the QR content itself);
   - `showAlert(I18N.t('app.decodeSuccess'), 'success')`.
 - **Failure branch**: first `clearRect` and redraw the original image, then apply **color inversion** (`255 - c`) on pixels, `toBlob` again and retry once (handles inverted QR codes).
 - **Still fails**: `showAlert(I18N.t('app.decodeFail'))` and hide the result.
@@ -820,20 +798,18 @@ function renderCurrentPage() {
 
 - Clear `<tbody>`, build rows in batch with `DocumentFragment` (`createMappingRow`) and insert once, reducing reflow.
 
-### 4.13 `addMapping()` — Create Short Link
+### 4.13 `addLinkMapping()` / `addWechatMapping()` — Create Short Link
 
-1. Read `newName/newPath/newTarget/newExpiry/newEnabled/newIsWechat/qrCodeData` (all `.trim()` / `.checked` / `.value`).
-2. **Frontend validation** (all hints via `I18N.t('app.*')`):
-   - `!name` → `app.entryNameRequired`;
-   - `!path` → `app.pathRequired`;
-   - `!/^[a-zA-Z0-9-_]+$/.test(path)` → `app.pathInvalid`;
-   - `!target` → `app.targetRequired`;
-   - `isWechat && !qrCodeData` → `app.wechatImageRequired`.
-3. `fetch('/api/mapping', POST, JSON.stringify({ name,path,target,expiry,enabled,isWechat, qrCodeData: isWechat ? qrCodeData : null }))`:
-   - 401 → redirect to login;
-   - `!ok` → parse error hint (backend usually returns 500 JSON, but this branch uses `data.message || data.error`);
-   - success → `showAlert(I18N.t('app.addSuccess'), 'success')` + `location.reload()` (full-page refresh to reload the list).
-- Note: for normal links `qrCodeData` is explicitly `null`; only WeChat live codes carry the DataURL.
+The single `addMapping` is split into two independent handlers:
+
+- **`addLinkMapping()`** — normal short link: reads `#linkName/#linkPath/#linkTarget/#linkExpiry/#linkEnabled`, sends `{ name, path, target, expiry, enabled, isWechat: false, qrCodeData: null }`.
+- **`addWechatMapping()`** — WeChat live code: reads `#wName/#wPath/#wExpiry/#wEnabled` and the hidden `#qrCodeData` (the uploaded QR's DataURL); sends `{ name, path, target, expiry, enabled, isWechat: true, qrCodeData }`. Frontend validation: `!qrCodeData` → `app.wechatImageRequired` (a QR image is mandatory for WeChat entries).
+
+Both share the same submission pipeline (read fields, frontend validation via `I18N.t('app.*')` — `entryNameRequired`/`pathRequired`/`pathInvalid`/`targetRequired`/`wechatImageRequired`, then `fetch('/api/mapping', POST, ...)`):
+- 401 → redirect to login;
+- `!ok` → parse error hint (`data.error`, falling back to a generic message);
+- success → `showAlert(I18N.t('app.addSuccess'), 'success')` + `location.reload()`.
+- A WeChat entry's `qrCodeData` is the original QR image DataURL; normal links always send `null`.
 
 ### 4.14 `deleteMapping(path)` — Delete Short Link
 
@@ -896,7 +872,7 @@ function createMappingRow(path, mapping) {
 
 1. Read `newName/newPath/newTarget/newExpiry/newEnabled/newIsWechat` from the edit controls.
 2. **Change detection**: compare item-by-item with `dataset.originalData`; if `hasChanges` is false → close the modal and exit directly (save a request).
-3. **Save**: first `GET /api/mapping?path=originalPath` to get the server-side `qrCodeData` (don't lose WeChat data when editing a normal link), then `PUT /api/mapping` submitting `{ originalPath, path, target, name, expiry, enabled, isWechat, qrCodeData: serverData.qrCodeData }`.
+3. **Save**: the entry type (`isWechat`) is fixed by the original record and cannot be flipped between normal/WeChat. Build the payload: for a WeChat record, `qrCodeData` is the re-uploaded value (`#editQrCodeData`) if present, otherwise the server-side original (`GET /api/mapping?path=originalPath`); for a normal record `qrCodeData` stays `null`. Then `PUT /api/mapping` with `{ originalPath, path, target, name, expiry, enabled, isWechat, qrCodeData }`.
 4. Success → `showAlert(I18N.t('app.updateSuccess'), 'success')` + `loadMappings()` partial refresh; if in the expired view, also sync-refresh.
 - **Key point**: when editing, `qrCodeData` always uses the server-side original value (because the edit form does not re-upload an image), consistent with the backend's "reuse original QR" logic.
 
@@ -1035,8 +1011,8 @@ binding = "ASSETS"
 | `[env.dev.triggers].crons` | dev scheduled task (every 10 seconds, 6-field cron with seconds) |
 | `[assets]` | static asset directory `./dist`, bound to `ASSETS`; `login.html`/`admin.html` etc. are served from here |
 
-- **Missing KV binding**: `index.js` uses `env.KV_BINDING`, but `wrangler.toml` has **no `[kv_namespaces]`**, so `KV_BINDING` is `undefined` at runtime in both production and dev. Currently only `migrateFromKV()` uses it and it is not enabled, so deployment is unaffected; if migration is enabled in the future, the KV binding must be added (see [6.2](#62-unused-functions)).
-- **Production password security**: `PASSWORD` should not be written in plaintext at the top level of `wrangler.toml` (dev is for local testing only). Production should inject the encrypted variable via `wrangler secret put PASSWORD`.
+- **No KV binding required**: the current code is D1-only — `migrateFromKV()` and `KV_BINDING` have been removed, and `wrangler.toml` needs no `[kv_namespaces]`.
+- **Production password security**: `PASSWORD` should not be written in plaintext at the top level of `wrangler.toml` (the `[env.dev.vars]` value is for local testing only). In production inject the encrypted variable via `wrangler secret put PASSWORD` (see the comment above `[env.dev.vars]`).
 
 ### 5.2 `package.json`
 
@@ -1091,18 +1067,15 @@ CREATE INDEX IF NOT EXISTS idx_enabled_expiry ON mappings(enabled, expiry);
 
 ### 6.1 Authentication Security
 
-- **Plaintext Cookie Token**: on successful login, `token=plaintext password` is written to the Cookie (only `HttpOnly` + `SameSite=Strict` protect against XSS/CSRF, but **both transport and storage are plaintext**). Anyone who can read the Cookie gains password-equivalent permissions; the Worker-side `verifyAuthCookie` compares in plaintext.
-- **No signature/expiry check**: Cookie expiry relies only on `Max-Age=86400` (1 day); the server does not validate the issue time or rotate.
-- **Suggestions**:
-  1. Use a random strong `token` (generate a UUID/random string on login), and maintain a `token→expiry` mapping on the server (KV/D1) or sign a JWT;
-  2. Transport over HTTPS (provided by Cloudflare by default); can add the `Secure` attribute;
-  3. Add server-side expiry/revocation;
-  4. Inject `PASSWORD` via `wrangler secret` rather than plaintext `wrangler.toml`.
+- **Signed cookie, not plaintext**: on successful login the Worker writes `auth=issuedAt.<hmac>` (HMAC-SHA256 of `issuedAt` keyed by `PASSWORD`, see 2.3). The raw password is **never** embedded in the Cookie, so a leaked cookie no longer equals the password. `verifyAuthToken` (2.3.1) recomputes the HMAC and rejects tokens older than `Max-Age=86400` (1 day) and uses a constant-time compare — closing the plaintext-comparison and indefinite-replay gaps.
+- **Hardened attributes**: the Cookie is `HttpOnly` + `SameSite=Strict` + `Max-Age=86400`; Cloudflare terminates TLS so it is also `Secure` in practice.
+- **Remaining suggestions**:
+  1. Optionally shorten `Max-Age` or add server-side revocation if stronger session control is needed;
+  2. Keep `PASSWORD` injected via `wrangler secret` (not plaintext in `wrangler.toml`) — already the production guidance.
 
 ### 6.2 Unused Functions
 
-- `cleanupExpiredMappings()`: a utility to delete expired records in batches, but **not called by `fetch` or `scheduled`**. Currently `scheduled` only logs, performing no real cleanup. To enable auto-cleanup, call it inside `scheduled` (recommend a "mark-only/soft-delete or notify-then-delete" strategy).
-- `migrateFromKV()`: logic to migrate from KV to D1, but **not called**, and depends on `KV_BINDING` which is not configured in `wrangler.toml`. To enable: ① add `[[kv_namespaces]]` in `wrangler.toml` (binding `KV_BINDING`); ② provide a one-time trigger entry (e.g. a one-time route in `fetch` or the first run of `scheduled`).
+- None currently. `cleanupExpiredMappings()` is now invoked by `scheduled` to physically delete expired records (see 2.6), and the historical `migrateFromKV()` / `KV_BINDING` code has been removed entirely (the project is D1-only).
 
 ### 6.3 Note: Timestamps Uniformly Stored in TEXT Columns
 
@@ -1131,7 +1104,7 @@ CREATE INDEX IF NOT EXISTS idx_enabled_expiry ON mappings(enabled, expiry);
 - **Redirect 404 status code**: both the expired page and disabled items return **404** (rather than 410 Gone or 403); this is debatable for SEO/semantics, but can be kept if it is an intentional "pretend not to exist" design.
 - **`expiry` validation only `Date.parse`**: allows any parseable date (including past times); neither frontend nor backend prevents "creating an already-expired short link". Add business validation if needed.
 - **Live-code page and expired page `Cache-Control: no-store`**: correctly avoids CDN/browser caching of dynamic content, good practice.
-- **Dual `banPath` maintenance (frontend + backend)**: the frontend (admin.html) and backend (index.js) each maintain an identical `banPath` array, with inconsistency risk. If frontend validation is needed, unify the source (e.g. delivered via API or injected at build time).
+- **`banPath` single source**: `src/db.js` is the single source of truth for `banPath` (exported for reuse). The frontend `admin.html` still keeps a copy for input hints, but it now carries a comment pointing to `src/db.js` as the canonical list — keep the two in sync when adding reserved names (see 2.1 / 4.2).
 
 ### 6.7 Admin Header Layout Fix Record
 

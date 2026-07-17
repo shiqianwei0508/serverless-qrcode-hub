@@ -257,7 +257,7 @@ function renderWechatPage({ name, lang, T, qrCodeData }) {
         <div class="icon"><img src="wechat.svg" alt="WeChat"></div>
         <h1 class="title">${name ? escapeHtml(name) : T.wechatHeading}</h1>
         <p class="notice">${T.wechatNotice}</p>
-        <div class="qr-wrap"><img class="qr-code" src="${qrCodeData}" alt="WeChat QR"></div>
+        <div class="qr-wrap"><img class="qr-code" src="${escapeHtml(qrCodeData)}" alt="WeChat QR"></div>
         <p class="footer">${T.wechatFooter}</p>
     </div>
 </body>

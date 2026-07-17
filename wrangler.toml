@@ -3,7 +3,9 @@ main = "index.js"
 compatibility_date = "2025-03-10"
 
 [env.dev.vars]
-# Password for the dev environment
+# Password for the DEV environment only. In production, do NOT put the password
+# here as plaintext. Set it via the Cloudflare dashboard (Variables) or run
+# `wrangler secret put PASSWORD` before a bare `wrangler deploy`.
 PASSWORD = "test1234"
 
 [[d1_databases]]

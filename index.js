@@ -1,8 +1,8 @@
 // Worker entry: routing, auth, and API dispatch.
 // Backend logic is split into src/* modules (bundled into one Worker by esbuild):
-//   - src/state.js  shared runtime state (DB / KV_BINDING) + initState()
+//   - src/state.js  shared runtime state (DB) + initState()
 //   - src/util.js   escapeHtml()
-//   - src/db.js     data layer (schema, CRUD, validation, KV migration)
+//   - src/db.js     data layer (schema, CRUD, validation, cleanup)
 //   - src/pages.js  public pages (expired / WeChat renderers + i18n)
 import { DB, initState } from './src/state.js';
 import {
@@ -13,6 +13,7 @@ import {
   deleteMapping,
   pinMapping,
   getExpiringMappings,
+  cleanupExpiredMappings,
   normalizeTarget
 } from './src/db.js';
 import {
@@ -21,27 +22,15 @@ import {
   renderExpiredPage,
   renderWechatPage
 } from './src/pages.js';
+import { verifyAuthToken, authCookieHeader, clearAuthCookieHeader } from './src/util.js';
 
 // Cookie-related helpers
-function verifyAuthCookie(request, env) {
+async function verifyAuthCookie(request, env) {
   const cookie = request.headers.get('Cookie') || '';
-  const authToken = cookie.split(';').find(c => c.trim().startsWith('token='));
-  if (!authToken) return false;
-  return authToken.split('=')[1].trim() === env.PASSWORD;
-}
-
-function setAuthCookie(password) {
-  return {
-    'Set-Cookie': `token=${password}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`,
-    'Content-Type': 'application/json'
-  };
-}
-
-function clearAuthCookie() {
-  return {
-    'Set-Cookie': 'token=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0',
-    'Content-Type': 'application/json'
-  };
+  const authCookie = cookie.split(';').find(c => c.trim().startsWith('auth='));
+  if (!authCookie) return false;
+  const token = authCookie.split('=')[1].trim();
+  return verifyAuthToken(token, env.PASSWORD);
 }
 
 export default {
@@ -66,7 +55,10 @@ export default {
         const { password } = await request.json();
         if (password === env.PASSWORD) {
           return new Response(JSON.stringify({ success: true }), {
-            headers: setAuthCookie(password)
+            headers: {
+              'Content-Type': 'application/json',
+              'Set-Cookie': await authCookieHeader(env.PASSWORD)
+            }
           });
         }
         return new Response('Unauthorized', { status: 401 });
@@ -75,12 +67,15 @@ export default {
       // Logout API
       if (path === 'api/logout' && request.method === 'POST') {
         return new Response(JSON.stringify({ success: true }), {
-          headers: clearAuthCookie()
+          headers: {
+            'Content-Type': 'application/json',
+            'Set-Cookie': clearAuthCookieHeader()
+          }
         });
       }
 
       // APIs that require authentication
-      if (!verifyAuthCookie(request, env)) {
+      if (!await verifyAuthCookie(request, env)) {
         return new Response('Unauthorized', { status: 401 });
       }
 
@@ -284,10 +279,16 @@ export default {
       console.log('Expired mappings:', JSON.stringify(result.expired, null, 2));
     }
 
-    console.log(`Found ${result.expiring.length} mappings expiring in 2 days`);
+    console.log(`Found ${result.expiring.length} mappings expiring in 3 days`);
     if (result.expiring.length > 0) {
       console.log('Expiring soon mappings:', JSON.stringify(result.expiring, null, 2));
     }
+
+    // Physically delete expired mappings. The report above only lists enabled
+    // mappings inside the 3-day window; this removes everything past its
+    // expiry (including disabled) so the short links stop resolving as 404.
+    const deleted = await cleanupExpiredMappings();
+    console.log(`Cleaned up ${deleted} expired mappings`);
   },
 
 };

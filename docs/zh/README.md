@@ -119,7 +119,7 @@
 - **依赖安装**：`pnpm install --frozen-lockfile`（依赖见 `pnpm-lock.yaml`，锁文件需保持最新）
 - **部署命令**：`npx wrangler deploy`（当前使用 `wrangler 4.0.0`）
 - **数据库绑定**：D1 数据库 `qrcode_hub`（配置见 `wrangler.toml` 的 `d1_databases`）
-- **定时任务**：`schedule: 0 2 */1 * *`（每 2 天 02:00 触发，用于过期数据自动清理）
+- **定时任务**：`schedule: 0 2 */1 * *`（生产环境 cron 每天 02:00 触发；定时任务会在 3 天窗口内上报即将过期/已过期链接，**并物理删除已过期记录**）
 - **静态资源**：管理后台 `dist/admin.html` 通过 `assets` 配置随 Worker 一并发布
 
 > ⚠️ **Worker 名称需与 CI 期望一致**：CI 系统按 Worker 名称匹配部署目标。若 `wrangler.toml` 中的 `name` 与 CI 期望不一致，构建日志会出现类似警告并被 CI 覆盖部署：

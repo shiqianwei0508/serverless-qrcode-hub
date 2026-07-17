@@ -12,4 +12,4 @@
   - 构建参数 `USE_CN_MIRROR`（默认空/关闭）：为 `true` 时 apt 切阿里云、npm 切 npmmirror.com，并安装 tzdata 设置 `Asia/Shanghai` 时区。
   - 密码通过环境变量 `APP_PASSWORD`（默认 test1234）注入；`wrangler.docker.toml` 顶层 `[vars] PASSWORD="${APP_PASSWORD}"`，不改动生产 `wrangler.toml`。
   - 用法：`docker compose up -d --build`；国内：`USE_CN_MIRROR=true docker compose up -d --build`。
-- 禁止随意 push，需用户明确确认。
+- **git push 由用户自己手动在合适时间执行，AI 助手一律不碰 push**（不要主动询问是否 push，也不要执行 push 命令）。可以正常 `git add` / `git commit`，但 push 完全交给用户。

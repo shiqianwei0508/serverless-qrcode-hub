@@ -119,7 +119,7 @@ This project is configured with Cloudflare Workers Builds. After pushing code to
 - **Dependency install**: `pnpm install --frozen-lockfile` (see `pnpm-lock.yaml`; keep the lock file up to date)
 - **Deploy command**: `npx wrangler deploy` (currently using `wrangler 4.0.0`)
 - **Database binding**: D1 database `qrcode_hub` (configured in `wrangler.toml`'s `d1_databases`)
-- **Scheduled task**: `schedule: 0 2 */1 * *` (triggers at 02:00 every 2 days, for automatic expired-data cleanup)
+- **Scheduled task**: `schedule: 0 2 */1 * *` (production cron runs daily at 02:00; the handler reports soon-to-expire / already-expired links within a 3-day window **and physically deletes expired records**)
 - **Static assets**: admin panel `dist/admin.html` is published together with the Worker via the `assets` config
 
 > ⚠️ **The Worker name must match what CI expects**: The CI system matches the deployment target by Worker name. If the `name` in `wrangler.toml` does not match what CI expects, the build log will show a warning and be overridden by CI:

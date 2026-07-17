@@ -172,6 +172,25 @@
                     <label for="editModalTarget" class="label pb-1"><span class="label-text text-base font-medium" data-i18n="admin.targetUrl">Target URL</span></label>
                     <textarea id="editModalTarget" class="textarea textarea-bordered w-full text-base" rows="5" data-i18n-ph="admin.targetUrlPlaceholder" placeholder="Target URL" style="resize:none; word-break:break-all;"></textarea>
                 </div>
+                <!-- WeChat-only: re-upload the live QR image -->
+                <div id="editWechatSection" class="hidden">
+                    <div id="editQrUploadArea" class="upload-area border-2 border-dashed p-4 sm:p-6 text-center rounded-xl cursor-pointer">
+                        <div class="flex flex-col items-center gap-2 text-base-content/70">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 15V3m0 0l-4 4m4-4l4 4" />
+                            </svg>
+                            <p class="text-sm" data-i18n="admin.reuploadHint">Click or drag a new QR image to replace</p>
+                        </div>
+                        <input type="file" id="editQrFile" accept="image/*" class="hidden">
+                    </div>
+                    <div id="editQrResult" class="card bg-base-200 hidden mt-3">
+                        <div class="card-body py-3">
+                            <h3 class="card-title text-sm" data-i18n="admin.decodeResult">Decoded result (auto-filled into the target URL above)</h3>
+                            <p id="editDecodedText" class="text-primary font-mono break-all text-sm"></p>
+                        </div>
+                    </div>
+                    <p class="text-xs text-base-content/60 mt-2" data-i18n="admin.wechatReuploadNote">Leave unchanged to keep the current QR code.</p>
+                </div>
                 <div>
                     <label for="editModalExpiry" class="label pb-1"><span class="label-text text-base font-medium" data-i18n="admin.expiry">Expiry date</span></label>
                     <input type="date" id="editModalExpiry" class="input input-bordered w-full text-base h-11">
@@ -180,10 +199,6 @@
                     <label class="cursor-pointer flex items-center gap-3 p-2 rounded-lg hover:bg-base-200 transition-colors">
                         <input type="checkbox" id="editModalEnabled" class="toggle toggle-primary" checked>
                         <span class="label-text text-base font-medium" data-i18n="admin.enableLink">Enable this link</span>
-                    </label>
-                    <label class="cursor-pointer flex items-center gap-3 p-2 rounded-lg hover:bg-base-200 transition-colors">
-                        <input type="checkbox" id="editModalIsWechat" class="toggle toggle-primary">
-                        <span class="label-text text-base font-medium" data-i18n="admin.wechatQr">WeChat QR</span>
                     </label>
                 </div>
             </div>
@@ -214,6 +229,7 @@
 
     <div id="alertContainer"></div>
     <input type="hidden" id="qrCodeData">
+    <input type="hidden" id="editQrCodeData">
 
     <div class="max-w-[1400px] mx-auto px-3 sm:px-5 py-3 md:py-6">
         <!-- Top navigation bar -->
@@ -238,11 +254,17 @@
         <!-- Action buttons -->
         <div class="mb-6">
             <div class="flex flex-wrap justify-center sm:justify-start gap-3">
-                <button id="toggleCreateBtn" type="button" class="btn btn-primary gap-2 shadow-sm">
+                <button id="addLinkBtn" type="button" class="btn btn-primary gap-2 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    <span data-i18n="admin.addLink">Add Link</span>
+                </button>
+                <button id="addWechatBtn" type="button" class="btn btn-primary gap-2 shadow-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                     </svg>
-                    <span data-i18n="admin.addLink">Add QR Link</span>
+                    <span data-i18n="admin.addWechat">Add WeChat QR</span>
                 </button>
                 <button id="toggleHelpBtn" type="button" class="btn btn-ghost gap-2 shadow-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -282,76 +304,91 @@
                     </div>
                 </div>
             </div>
-            <div id="createPanel" class="card bg-base-100 shadow-xl rounded-box mt-4 hidden">
+            <!-- Normal link creation -->
+            <div id="createLinkPanel" class="card bg-base-100 shadow-xl rounded-box mt-4 hidden">
                 <div class="card-body">
-                    <h2 class="card-title text-lg section-title mb-4" data-i18n="admin.createPanelTitle">QR Decode & Link Creation</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                        <div id="qr-upload-area"
-                            class="upload-area border-2 border-dashed p-4 sm:p-6 md:p-8 text-center rounded-xl cursor-pointer">
-                            <div class="flex flex-col items-center gap-2 text-base-content/70">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-primary" fill="none"
-                                    viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-                                        d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 15V3m0 0l-4 4m4-4l4 4" />
-                                </svg>
-                                <p class="text-base" data-i18n="admin.uploadHint">Click or drag a QR image here</p>
-                            </div>
-                            <input type="file" id="qr-file" accept="image/*" class="hidden">
+                    <h2 class="card-title text-lg section-title mb-4" data-i18n="admin.createLinkTitle">Add Normal Link</h2>
+                    <div class="space-y-4 max-w-xl">
+                        <div>
+                            <label for="linkName" class="label pb-1"><span class="label-text" data-i18n="admin.entryName">Entry name</span></label>
+                            <input type="text" id="linkName" data-i18n-ph="admin.entryNamePlaceholder" placeholder="Entry name" class="input input-bordered w-full">
                         </div>
-                        <div id="qr-result" class="card bg-base-200 hidden mt-4">
-                            <div class="card-body">
-                                <h3 class="card-title text-base" data-i18n="admin.decodeResult">Decoded result (auto-filled into the target URL on the right)</h3>
-                                <p id="decoded-text" class="text-primary font-mono break-all"></p>
-                                <div class="card-actions justify-end">
-                                    <button id="copy-btn" class="btn btn-success btn-sm" data-i18n="admin.copyLink">Copy Link</button>
+                        <div>
+                            <label for="linkPath" class="label pb-1"><span class="label-text" data-i18n="admin.path">Short link</span></label>
+                            <input type="text" id="linkPath" data-i18n-ph="admin.pathPlaceholder" placeholder="Short link" class="input input-bordered w-full">
+                        </div>
+                        <div>
+                            <label for="linkTarget" class="label pb-1"><span class="label-text" data-i18n="admin.targetUrl">Target URL</span></label>
+                            <input type="text" id="linkTarget" data-i18n-ph="admin.targetUrlPlaceholder" placeholder="Target URL" class="input input-bordered w-full">
+                        </div>
+                        <div>
+                            <label for="linkExpiry" class="label pb-1"><span class="label-text" data-i18n="admin.expiry">Expiry date</span></label>
+                            <input type="date" id="linkExpiry" class="input input-bordered w-full">
+                        </div>
+                        <label class="label cursor-pointer justify-start gap-2">
+                            <input type="checkbox" id="linkEnabled" class="toggle toggle-primary" checked>
+                            <span class="label-text" data-i18n="admin.enableLink">Enable this link</span>
+                        </label>
+                        <button id="addLinkSubmitBtn" class="btn btn-primary w-full" data-i18n="admin.addButton">Add Link</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WeChat live-QR creation -->
+            <div id="createWechatPanel" class="card bg-base-100 shadow-xl rounded-box mt-4 hidden">
+                <div class="card-body">
+                    <h2 class="card-title text-lg section-title mb-4" data-i18n="admin.createWechatTitle">Add WeChat QR</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <div id="qr-upload-area"
+                                class="upload-area border-2 border-dashed p-4 sm:p-6 md:p-8 text-center rounded-xl cursor-pointer">
+                                <div class="flex flex-col items-center gap-2 text-base-content/70">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-primary" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                                            d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 15V3m0 0l-4 4m4-4l4 4" />
+                                    </svg>
+                                    <p class="text-base" data-i18n="admin.uploadHint">Click or drag a QR image here</p>
+                                </div>
+                                <input type="file" id="qr-file" accept="image/*" class="hidden">
+                            </div>
+                            <div id="qr-result" class="card bg-base-200 hidden mt-4">
+                                <div class="card-body">
+                                    <h3 class="card-title text-base" data-i18n="admin.decodeResult">Decoded result (auto-filled into the target URL on the right)</h3>
+                                    <p id="decoded-text" class="text-primary font-mono break-all"></p>
+                                    <div class="card-actions justify-end">
+                                        <button id="copy-btn" class="btn btn-success btn-sm" data-i18n="admin.copyLink">Copy Link</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="card bg-base-200/60 p-5 rounded-xl">
-                        <div class="space-y-4">
-                            <div>
-                                <label for="newName" class="label pb-1"><span class="label-text" data-i18n="admin.entryName">Entry name</span></label>
-                                <input type="text" id="newName" data-i18n-ph="admin.entryNamePlaceholder" placeholder="Entry name, e.g. Music Group 1" class="input input-bordered w-full">
-                            </div>
-                            <div>
-                                <label for="newPath" class="label pb-1"><span class="label-text" data-i18n="admin.path">Short link</span></label>
-                                <input type="text" id="newPath" data-i18n-ph="admin.pathPlaceholder" placeholder="Short link, e.g. music1" class="input input-bordered w-full">
-                            </div>
-                            <div>
-                                <label for="newTarget" class="label pb-1"><span class="label-text" data-i18n="admin.targetUrl">Target URL</span></label>
-                                <input type="text" id="newTarget" data-i18n-ph="admin.targetUrlPlaceholder" placeholder="Target URL, e.g. https://x.com/xxx" class="input input-bordered w-full">
-                            </div>
-                            <div>
-                                <label for="newExpiry" class="label pb-1"><span class="label-text" data-i18n="admin.expiry">Expiry date</span></label>
-                                <input type="date" id="newExpiry" class="input input-bordered w-full">
-                            </div>
-                            <div class="flex flex-col gap-2">
+                        <div class="card bg-base-200/60 p-5 rounded-xl">
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="wName" class="label pb-1"><span class="label-text" data-i18n="admin.entryName">Entry name</span></label>
+                                    <input type="text" id="wName" data-i18n-ph="admin.entryNamePlaceholder" placeholder="Entry name" class="input input-bordered w-full">
+                                </div>
+                                <div>
+                                    <label for="wPath" class="label pb-1"><span class="label-text" data-i18n="admin.path">Short link</span></label>
+                                    <input type="text" id="wPath" data-i18n-ph="admin.pathPlaceholder" placeholder="Short link" class="input input-bordered w-full">
+                                </div>
+                                <div>
+                                    <label for="wTarget" class="label pb-1"><span class="label-text" data-i18n="admin.targetUrl">Target URL</span></label>
+                                    <input type="text" id="wTarget" data-i18n-ph="admin.targetUrlPlaceholder" placeholder="Auto-filled after upload" class="input input-bordered w-full" readonly>
+                                </div>
+                                <div>
+                                    <label for="wExpiry" class="label pb-1"><span class="label-text" data-i18n="admin.expiry">Expiry date</span></label>
+                                    <input type="date" id="wExpiry" class="input input-bordered w-full">
+                                </div>
                                 <label class="label cursor-pointer justify-start gap-2">
-                                    <input type="checkbox" id="newEnabled" class="toggle toggle-primary" checked>
+                                    <input type="checkbox" id="wEnabled" class="toggle toggle-primary" checked>
                                     <span class="label-text" data-i18n="admin.enableLink">Enable this link</span>
-                                    <div class="tooltip tooltip-right" data-i18n-tip="admin.disabledTooltip" data-tip="Disabled links return 404 when accessed">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-4 h-4 stroke-current">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                    </div>
                                 </label>
-                                <label class="label cursor-pointer justify-start gap-2">
-                                    <input type="checkbox" id="newIsWechat" class="toggle toggle-primary">
-                                    <span class="label-text" data-i18n="admin.wechatQr">WeChat QR</span>
-                                    <div class="tooltip tooltip-right" data-i18n-tip="admin.wechatTooltip" data-tip="If this is a WeChat group QR, the live-code page will show the original QR. Toggle on/off when uploading.">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-4 h-4 stroke-current">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                    </div>
-                                </label>
+                                <button id="addWechatSubmitBtn" class="btn btn-primary w-full" data-i18n="admin.addWechatButton">Add WeChat QR</button>
                             </div>
-                            <button id="addMappingBtn" class="btn btn-primary w-full" data-i18n="admin.addButton">Add QR Link</button>
                         </div>
                     </div>
-                </div>
                 </div>
             </div>
         </div>
@@ -450,6 +487,8 @@
     <script src="/zxing.js"></script>
     <script>
         // Banned short-link names that collide with reserved routes / static assets.
+        // This client-side list is a UX convenience only; the authoritative source
+        // of truth is `banPath` in src/db.js and MUST be kept in sync with it.
         const banPath = [
             'login', 'admin', '__total_count',
             'admin.html', 'login.html',
@@ -491,20 +530,38 @@
 
             function initializePage() {
                 document.getElementById('logoutBtn').addEventListener('click', logout);
-                document.getElementById('addMappingBtn').addEventListener('click', addMapping);
-                document.getElementById('toggleCreateBtn').addEventListener('click', function () {
-                    const createPanel = document.getElementById('createPanel');
-                    const willShow = createPanel.classList.contains('hidden');
-                    createPanel.classList.toggle('hidden');
-                    if (willShow) document.getElementById('helpPanel').classList.add('hidden');
+                document.getElementById('addLinkSubmitBtn').addEventListener('click', addLinkMapping);
+                document.getElementById('addWechatSubmitBtn').addEventListener('click', addWechatMapping);
+                document.getElementById('addLinkBtn').addEventListener('click', function () {
+                    const p = document.getElementById('createLinkPanel');
+                    const willShow = p.classList.contains('hidden');
+                    p.classList.toggle('hidden');
+                    if (willShow) {
+                        document.getElementById('createWechatPanel').classList.add('hidden');
+                        document.getElementById('helpPanel').classList.add('hidden');
+                    }
+                });
+                document.getElementById('addWechatBtn').addEventListener('click', function () {
+                    const p = document.getElementById('createWechatPanel');
+                    const willShow = p.classList.contains('hidden');
+                    p.classList.toggle('hidden');
+                    if (willShow) {
+                        document.getElementById('createLinkPanel').classList.add('hidden');
+                        document.getElementById('helpPanel').classList.add('hidden');
+                    }
                 });
                 document.getElementById('toggleHelpBtn').addEventListener('click', function () {
                     const helpPanel = document.getElementById('helpPanel');
                     const willShow = helpPanel.classList.contains('hidden');
                     helpPanel.classList.toggle('hidden');
-                    if (willShow) document.getElementById('createPanel').classList.add('hidden');
+                    if (willShow) {
+                        document.getElementById('createLinkPanel').classList.add('hidden');
+                        document.getElementById('createWechatPanel').classList.add('hidden');
+                    }
                 });
-                setupQRUpload();
+                // Two independent QR-upload flows: create (WeChat) + edit (WeChat re-upload).
+                setupQRUpload('qr-upload-area', 'qr-file', 'qr-result', 'decoded-text', 'wTarget', 'qrCodeData');
+                setupQRUpload('editQrUploadArea', 'editQrFile', 'editQrResult', 'editDecodedText', 'editModalTarget', 'editQrCodeData');
 
                 loadMappings();
                 setupErrorHandling();
@@ -536,19 +593,6 @@
                     await loadExpiringMappings('expired');
                 });
 
-                document.getElementById('newIsWechat').addEventListener('change', function (e) {
-                    const targetInput = document.getElementById('newTarget');
-                    const decodedText = document.getElementById('decoded-text').textContent;
-                    if (e.target.checked) {
-                        targetInput.readOnly = true;
-                        if (decodedText) targetInput.value = decodedText;
-                    } else {
-                        targetInput.readOnly = false;
-                    }
-                });
-
-                document.getElementById('newIsWechat').disabled = true;
-
                 // Save button inside the edit modal
                 document.getElementById('editModalSaveBtn').addEventListener('click', saveEditFromModal);
             }
@@ -559,11 +603,10 @@
                 });
             }
 
-            function setupQRUpload() {
-                const uploadArea = document.getElementById('qr-upload-area');
-                const fileInput = document.getElementById('qr-file');
+            function setupQRUpload(areaId, fileInputId, resultId, decodedTextId, targetInputId, qrDataInputId) {
+                const uploadArea = document.getElementById(areaId);
+                const fileInput = document.getElementById(fileInputId);
                 const copyBtn = document.getElementById('copy-btn');
-                const qrResult = document.getElementById('qr-result');
 
                 uploadArea.addEventListener('click', () => fileInput.click());
                 uploadArea.addEventListener('dragover', (e) => {
@@ -577,14 +620,14 @@
                 uploadArea.addEventListener('drop', (e) => {
                     e.preventDefault(); e.stopPropagation();
                     uploadArea.classList.remove('is-drag');
-                    handleFiles(e.dataTransfer.files);
+                    handleFiles(e.dataTransfer.files, targetInputId, qrDataInputId, resultId, decodedTextId);
                 });
 
-                fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
-                copyBtn.addEventListener('click', copyDecodedText);
+                fileInput.addEventListener('change', (e) => handleFiles(e.target.files, targetInputId, qrDataInputId, resultId, decodedTextId));
+                if (copyBtn) copyBtn.addEventListener('click', () => copyDecodedText(decodedTextId, targetInputId));
             }
 
-            function handleFiles(files) {
+            function handleFiles(files, targetInputId, qrDataInputId, resultId, decodedTextId) {
                 if (files.length === 0) return;
                 const file = files[0];
                 if (!file.type.startsWith('image/')) {
@@ -592,29 +635,25 @@
                     return;
                 }
 
-                document.getElementById('qrCodeData').value = '';
-                document.getElementById('qr-result').classList.add('hidden');
-                document.getElementById('decoded-text').textContent = '';
-                document.getElementById('newTarget').value = '';
-
-                const wechatToggle = document.getElementById('newIsWechat');
-                wechatToggle.checked = false;
-                wechatToggle.disabled = true;
-                document.getElementById('newTarget').readOnly = false;
+                document.getElementById(qrDataInputId).value = '';
+                document.getElementById(resultId).classList.add('hidden');
+                document.getElementById(decodedTextId).textContent = '';
+                document.getElementById(targetInputId).value = '';
+                document.getElementById(targetInputId).readOnly = false;
 
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const img = new Image();
                     img.onload = () => {
-                        decodeQR(img);
-                        document.getElementById('qrCodeData').value = e.target.result;
+                        decodeQR(img, targetInputId, qrDataInputId, resultId, decodedTextId);
+                        document.getElementById(qrDataInputId).value = e.target.result;
                     };
                     img.src = e.target.result;
                 };
                 reader.readAsDataURL(file);
             }
 
-            async function decodeQR(img) {
+            async function decodeQR(img, targetInputId, qrDataInputId, resultId, decodedTextId) {
                 try {
                     const codeReader = new ZXing.BrowserMultiFormatReader();
                     const canvas = document.createElement('canvas');
@@ -656,15 +695,11 @@
                         URL.revokeObjectURL(imageUrl);
                         if (result) {
                             const decodedText = result.text;
-                            document.getElementById('decoded-text').textContent = decodedText;
-                            document.getElementById('qr-result').classList.remove('hidden');
-                            document.getElementById('newTarget').value = decodedText;
-                            const wechatToggle = document.getElementById('newIsWechat');
-                            wechatToggle.disabled = false;
-                            if (decodedText.startsWith('https://weixin.qq.com/')) {
-                                wechatToggle.checked = true;
-                                document.getElementById('newTarget').readOnly = true;
-                            }
+                            document.getElementById(decodedTextId).textContent = decodedText;
+                            document.getElementById(resultId).classList.remove('hidden');
+                            const targetInput = document.getElementById(targetInputId);
+                            targetInput.value = decodedText;
+                            targetInput.readOnly = true;
                             showAlert(I18N.t('app.decodeSuccess'), 'success');
                         }
                     } catch (decodeError) {
@@ -685,36 +720,35 @@
                             URL.revokeObjectURL(newImageUrl);
                             if (result) {
                                 const decodedText = result.text;
-                                document.getElementById('decoded-text').textContent = decodedText;
-                                document.getElementById('qr-result').classList.remove('hidden');
-                                document.getElementById('newTarget').value = decodedText;
-                                const wechatToggle = document.getElementById('newIsWechat');
-                                wechatToggle.disabled = false;
-                                if (decodedText.startsWith('https://weixin.qq.com/')) {
-                                    wechatToggle.checked = true;
-                                    document.getElementById('newTarget').readOnly = true;
-                                }
+                                document.getElementById(decodedTextId).textContent = decodedText;
+                                document.getElementById(resultId).classList.remove('hidden');
+                                const targetInput = document.getElementById(targetInputId);
+                                targetInput.value = decodedText;
+                                targetInput.readOnly = true;
                                 showAlert(I18N.t('app.decodeSuccess'), 'success');
                             }
                         } catch (finalError) {
                             console.error('QR decode error:', finalError);
                             showAlert(I18N.t('app.decodeFail'));
-                            document.getElementById('qr-result').classList.add('hidden');
+                            document.getElementById(resultId).classList.add('hidden');
                         }
                     }
                 } catch (error) {
                     console.error('Image processing error:', error);
                     showAlert(I18N.t('app.imageProcessError'));
-                    document.getElementById('qr-result').classList.add('hidden');
+                    document.getElementById(resultId).classList.add('hidden');
                 }
             }
 
-            function copyDecodedText() {
-                const text = document.getElementById('decoded-text').textContent;
+            function copyDecodedText(decodedTextId, targetInputId) {
+                const text = document.getElementById(decodedTextId).textContent;
                 copyToClipboard(text).then(ok => {
                     if (ok) {
-                        document.getElementById('newTarget').value = text;
-                        document.getElementById('newTarget').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        if (targetInputId) {
+                            const targetInput = document.getElementById(targetInputId);
+                            targetInput.value = text;
+                            targetInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
                         showAlert(I18N.t('app.copySuccess'), 'success');
                     } else {
                         showAlert(I18N.t('app.copyFail'));
@@ -770,7 +804,9 @@
                 INVALID_INPUT: 'app.invalidInput',
                 PATH_INVALID: 'app.pathInvalid',
                 TARGET_INVALID: 'app.targetInvalid',
-                INPUT_TOO_LONG: 'app.inputTooLong'
+                INPUT_TOO_LONG: 'app.inputTooLong',
+                QR_INVALID: 'app.qrInvalid',
+                QR_TOO_LARGE: 'app.qrTooLarge'
             };
             function apiErrorMessage(data) {
                 const code = (data && (data.error || data.message)) || '';
@@ -847,66 +883,96 @@
                 container.appendChild(fragment);
             }
 
-            async function addMapping() {
-                const name = document.getElementById('newName').value.trim();
-                const path = document.getElementById('newPath').value.trim();
-                const target = document.getElementById('newTarget').value.trim();
-                const expiry = dateToTimestamp(document.getElementById('newExpiry').value);
-                const enabled = document.getElementById('newEnabled').checked;
-                const isWechat = document.getElementById('newIsWechat').checked;
-                const qrCodeData = document.getElementById('qrCodeData').value;
+            async function addLinkMapping() {
+                const name = document.getElementById('linkName').value.trim();
+                const path = document.getElementById('linkPath').value.trim();
+                const target = document.getElementById('linkTarget').value.trim();
+                const expiry = dateToTimestamp(document.getElementById('linkExpiry').value);
+                const enabled = document.getElementById('linkEnabled').checked;
 
                 if (!name) { showAlert(I18N.t('app.entryNameRequired')); return; }
                 if (!path) { showAlert(I18N.t('app.pathRequired')); return; }
                 if (!/^[a-zA-Z0-9-_]+$/.test(path)) { showAlert(I18N.t('app.pathInvalid')); return; }
                 if (!target) { showAlert(I18N.t('app.targetRequired')); return; }
-                // If the target has no scheme, let the user choose https/http.
                 let finalTarget = target;
                 if (!/^https?:\/\//i.test(target)) {
                     const prefixed = await askProtocolPrefix(target);
                     if (prefixed === null) return; // cancelled
                     finalTarget = prefixed;
                 }
-                if (isWechat && !qrCodeData) { showAlert(I18N.t('app.wechatImageRequired')); return; }
 
                 try {
                     const response = await fetch('/api/mapping', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            name, path, target: finalTarget, expiry, enabled, isWechat,
-                            qrCodeData: isWechat ? qrCodeData : null
-                        })
+                        body: JSON.stringify({ name, path, target: finalTarget, expiry, enabled, isWechat: false, qrCodeData: null })
                     });
                     if (response.status === 401) { window.location.href = '/login'; return; }
                     const result = await response.json();
-                    if (!response.ok) {
-                        showAlert(apiErrorMessage(result));
-                        return;
-                    }
-                    // Show the result first, then refresh the list WITHOUT a full
-                    // page reload — otherwise the alert would be wiped instantly.
+                    if (!response.ok) { showAlert(apiErrorMessage(result)); return; }
                     showAlert(
                         result.targetNormalized ? I18N.t('app.targetAutoHttps') : I18N.t('app.addSuccess'),
                         result.targetNormalized ? 'info' : 'success'
                     );
-                    // Reset the add form.
-                    document.getElementById('newName').value = '';
-                    document.getElementById('newPath').value = '';
-                    document.getElementById('newTarget').value = '';
-                    document.getElementById('newExpiry').value = '';
-                    document.getElementById('newEnabled').checked = true;
-                    const addWechat = document.getElementById('newIsWechat');
-                    addWechat.checked = false;
-                    addWechat.disabled = true;
-                    document.getElementById('newTarget').readOnly = false;
-                    document.getElementById('qr-result')?.classList.add('hidden');
-                    document.getElementById('decoded-text').textContent = '';
-                    const qrc = document.getElementById('qrCodeData');
-                    if (qrc) qrc.value = '';
+                    document.getElementById('linkName').value = '';
+                    document.getElementById('linkPath').value = '';
+                    document.getElementById('linkTarget').value = '';
+                    document.getElementById('linkExpiry').value = '';
+                    document.getElementById('linkEnabled').checked = true;
+                    document.getElementById('createLinkPanel').classList.add('hidden');
                     await loadMappings();
                 } catch (error) {
-                    console.error('Failed to add QR link:', error);
+                    console.error('Failed to add link:', error);
+                    showAlert(I18N.t('app.addNetworkFail'));
+                }
+            }
+
+            async function addWechatMapping() {
+                const name = document.getElementById('wName').value.trim();
+                const path = document.getElementById('wPath').value.trim();
+                const target = document.getElementById('wTarget').value.trim();
+                const expiry = dateToTimestamp(document.getElementById('wExpiry').value);
+                const enabled = document.getElementById('wEnabled').checked;
+                const qrCodeData = document.getElementById('qrCodeData').value;
+
+                if (!name) { showAlert(I18N.t('app.entryNameRequired')); return; }
+                if (!path) { showAlert(I18N.t('app.pathRequired')); return; }
+                if (!/^[a-zA-Z0-9-_]+$/.test(path)) { showAlert(I18N.t('app.pathInvalid')); return; }
+                if (!target) { showAlert(I18N.t('app.targetRequired')); return; }
+                if (!qrCodeData) { showAlert(I18N.t('app.wechatImageRequired')); return; }
+                let finalTarget = target;
+                if (!/^https?:\/\//i.test(target)) {
+                    const prefixed = await askProtocolPrefix(target);
+                    if (prefixed === null) return; // cancelled
+                    finalTarget = prefixed;
+                }
+
+                try {
+                    const response = await fetch('/api/mapping', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, path, target: finalTarget, expiry, enabled, isWechat: true, qrCodeData })
+                    });
+                    if (response.status === 401) { window.location.href = '/login'; return; }
+                    const result = await response.json();
+                    if (!response.ok) { showAlert(apiErrorMessage(result)); return; }
+                    showAlert(
+                        result.targetNormalized ? I18N.t('app.targetAutoHttps') : I18N.t('app.addSuccess'),
+                        result.targetNormalized ? 'info' : 'success'
+                    );
+                    document.getElementById('wName').value = '';
+                    document.getElementById('wPath').value = '';
+                    document.getElementById('wTarget').value = '';
+                    document.getElementById('wTarget').readOnly = false;
+                    document.getElementById('wExpiry').value = '';
+                    document.getElementById('wEnabled').checked = true;
+                    document.getElementById('qrCodeData').value = '';
+                    document.getElementById('qr-result').classList.add('hidden');
+                    document.getElementById('decoded-text').textContent = '';
+                    document.getElementById('createWechatPanel').classList.add('hidden');
+                    await loadMappings();
+                } catch (error) {
+                    console.error('Failed to add WeChat QR:', error);
                     showAlert(I18N.t('app.addNetworkFail'));
                 }
             }
@@ -1221,9 +1287,23 @@
                     document.getElementById('editModalName').value = mappingData.name || '';
                     document.getElementById('editModalPath').value = mappingData.path;
                     document.getElementById('editModalTarget').value = mappingData.target;
+                    document.getElementById('editModalTarget').readOnly = mappingData.isWechat;
                     document.getElementById('editModalExpiry').value = timestampToInputValue(mappingData.expiry);
                     document.getElementById('editModalEnabled').checked = mappingData.enabled;
-                    document.getElementById('editModalIsWechat').checked = mappingData.isWechat;
+
+                    // WeChat entries: show the re-upload control (keep existing QR if untouched);
+                    // normal entries never expose the QR upload.
+                    const wechatSection = document.getElementById('editWechatSection');
+                    const editQrData = document.getElementById('editQrCodeData');
+                    if (mappingData.isWechat) {
+                        wechatSection.classList.remove('hidden');
+                        editQrData.value = mappingData.qrCodeData || '';
+                        document.getElementById('editQrResult').classList.add('hidden');
+                        document.getElementById('editDecodedText').textContent = '';
+                    } else {
+                        wechatSection.classList.add('hidden');
+                        editQrData.value = '';
+                    }
 
                     document.getElementById('edit-modal').showModal();
                 } catch (error) {
@@ -1238,7 +1318,6 @@
                 const newTarget = document.getElementById('editModalTarget').value.trim();
                 const newExpiry = dateToTimestamp(document.getElementById('editModalExpiry').value);
                 const newEnabled = document.getElementById('editModalEnabled').checked;
-                const newIsWechat = document.getElementById('editModalIsWechat').checked;
 
                 if (!newName) { showAlert(I18N.t('app.entryNameRequired')); return; }
                 if (!newPath) { showAlert(I18N.t('app.pathRequired')); return; }
@@ -1254,8 +1333,11 @@
                 }
 
                 const od = currentEditOriginalData;
+                // The entry type (normal vs WeChat) is fixed by the original record;
+                // it cannot be flipped from the edit form, so derive it from there.
+                const newIsWechat = !!od.isWechat;
                 const hasChanges = newName !== od.name || newPath !== od.path || newTarget !== od.target
-                    || newExpiry !== od.expiry || newEnabled !== od.enabled || newIsWechat !== od.isWechat;
+                    || newExpiry !== od.expiry || newEnabled !== od.enabled;
                 if (!hasChanges) {
                     document.getElementById('edit-modal').close();
                     return;
@@ -1265,13 +1347,17 @@
                     const response = await fetch(`/api/mapping?path=${od.path}`);
                     if (!response.ok) throw new Error('Fetch original failed');
                     const serverData = await response.json();
+                    // WeChat: use the newly uploaded QR if present, else keep the existing one.
+                    const qrCodeData = newIsWechat
+                        ? (document.getElementById('editQrCodeData').value || serverData.qrCodeData)
+                        : null;
                     const updateResponse = await fetch('/api/mapping', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             originalPath: od.path, path: newPath, target: finalTarget,
                             name: newName, expiry: newExpiry || null, enabled: newEnabled,
-                            isWechat: newIsWechat, qrCodeData: serverData.qrCodeData
+                            isWechat: newIsWechat, qrCodeData
                         })
                     });
                     const updateData = await updateResponse.json();

@@ -42,7 +42,7 @@
       'admin.helpTitle': 'Help',
       'admin.howToUse': 'How to use',
       'admin.helpStep1': 'Drag or click to upload a group QR code to the recognition area; it will be decoded and filled into the target URL automatically.',
-      'admin.helpStep2': 'Enter the group name and short link name, choose an expiry date (or leave it empty), then click Add QR Link.',
+      'admin.helpStep2': 'For a normal link, fill in the name, short link and target URL. For a WeChat QR, click "Add WeChat QR", upload the QR image and fill in the name and short link.',
       'admin.helpStep3': 'Manage added links below: edit, delete, and view or download the QR code.',
       'admin.notes': 'Notes',
       'admin.note1': 'Short link names may only contain letters, numbers, underscores and hyphens.',
@@ -64,6 +64,12 @@
       'admin.wechatQr': 'WeChat QR',
       'admin.wechatTooltip': 'If this is a WeChat group QR, the live-code page will show the original QR. Toggle on/off when uploading.',
       'admin.addButton': 'Add QR Link',
+      'admin.addWechat': 'Add WeChat QR',
+      'admin.createLinkTitle': 'Add Normal Link',
+      'admin.createWechatTitle': 'Add WeChat QR',
+      'admin.addWechatButton': 'Add WeChat QR',
+      'admin.reuploadHint': 'Click or drag a new QR image to replace',
+      'admin.wechatReuploadNote': 'Leave unchanged to keep the current QR code.',
       'admin.manageTitle': 'QR Link Management',
       'admin.searchPlaceholder': 'Search entry name / short link...',
       'admin.sortByName': 'Name',
@@ -155,7 +161,9 @@
       'app.forever': 'Permanent',
       'app.reservedPath': 'This short link name is reserved by the system, please choose another',
       'app.invalidExpiry': 'Invalid expiry date',
-      'app.invalidInput': 'Invalid input'
+      'app.invalidInput': 'Invalid input',
+      'app.qrInvalid': 'The QR image must be a valid image or http(s) URL',
+      'app.qrTooLarge': 'The QR image is too large (max 1 MB)'
     },
 
     zh: {
@@ -177,7 +185,7 @@
       'admin.helpTitle': '使用说明',
       'admin.howToUse': '使用步骤',
       'admin.helpStep1': '将群聊二维码拖动或点击上传到二维码识别区域，即可自动识别并填充到目标 URL 输入框',
-      'admin.helpStep2': '在目标 URL 输入框中输入群聊名称、短链名称，选择过期时间或不设置，点击添加短链二维码',
+      'admin.helpStep2': '普通链接：填写名称、短链名与目标 URL。微信活码：点击“添加微信活码”，上传二维码图片并填写名称与短链名。',
       'admin.helpStep3': '在下方管理面板可查看已添加的短链，支持编辑、删除，并可查看或下载对应二维码',
       'admin.notes': '注意事项',
       'admin.note1': '短链名只能包含字母、数字、下划线和横线',
@@ -199,6 +207,12 @@
       'admin.wechatQr': '微信二维码',
       'admin.wechatTooltip': '如果是微信群二维码，将使用活码页面展示原二维码。上传二维码图片时可开启或关闭',
       'admin.addButton': '添加短链二维码',
+      'admin.addWechat': '添加微信活码',
+      'admin.createLinkTitle': '添加普通链接',
+      'admin.createWechatTitle': '添加微信活码',
+      'admin.addWechatButton': '添加微信活码',
+      'admin.reuploadHint': '点击或拖拽新二维码图片以替换',
+      'admin.wechatReuploadNote': '不修改则保留当前二维码。',
       'admin.manageTitle': '短链二维码管理',
       'admin.searchPlaceholder': '搜索条目名称 / 短链名…',
       'admin.sortByName': '名称',
@@ -290,7 +304,9 @@
       'app.forever': '永久有效',
       'app.reservedPath': '该短链名已被系统保留，请使用其他名称',
       'app.invalidExpiry': '无效的过期日期',
-      'app.invalidInput': '无效的输入'
+      'app.invalidInput': '无效的输入',
+      'app.qrInvalid': '二维码必须是合法的图片或 http(s) 链接',
+      'app.qrTooLarge': '二维码图片过大（最大 1 MB）'
     },
 
     ru: {
@@ -334,6 +350,12 @@
       'admin.wechatQr': 'WeChat QR',
       'admin.wechatTooltip': 'Если это QR группы WeChat, будет показан оригинальный QR на странице. Включайте/выключайте при загрузке.',
       'admin.addButton': 'Добавить QR-ссылку',
+      'admin.addWechat': 'Добавить WeChat QR',
+      'admin.createLinkTitle': 'Добавить обычную ссылку',
+      'admin.createWechatTitle': 'Добавить WeChat QR',
+      'admin.addWechatButton': 'Добавить WeChat QR',
+      'admin.reuploadHint': 'Нажмите или перетащите новый QR, чтобы заменить',
+      'admin.wechatReuploadNote': 'Оставьте без изменений, чтобы сохранить текущий QR.',
       'admin.manageTitle': 'Управление QR-ссылками',
       'admin.searchPlaceholder': 'Поиск по названию / короткой ссылке...',
       'admin.sortByName': 'Имя',
@@ -425,7 +447,9 @@
       'app.forever': 'Бессрочно',
       'app.reservedPath': 'Это имя короткой ссылки зарезервировано системой, выберите другое',
       'app.invalidExpiry': 'Недействительная дата окончания',
-      'app.invalidInput': 'Недопустимые входные данные'
+      'app.invalidInput': 'Недопустимые входные данные',
+      'app.qrInvalid': 'QR-изображение должно быть корректным изображением или ссылкой http(s)',
+      'app.qrTooLarge': 'QR-изображение слишком большое (макс. 1 МБ)'
     },
 
     ja: {
@@ -469,6 +493,12 @@
       'admin.wechatQr': 'WeChat QR',
       'admin.wechatTooltip': 'WeChatグループのQRコードの場合、元のQRを表示する動的ページを使用します。アップロード時に切り替え可能。',
       'admin.addButton': 'QRリンクを追加',
+      'admin.addWechat': 'WeChat活码を追加',
+      'admin.createLinkTitle': '通常リンクを追加',
+      'admin.createWechatTitle': 'WeChat活码を追加',
+      'admin.addWechatButton': 'WeChat活码を追加',
+      'admin.reuploadHint': 'クリックまたはドラッグで新しいQR画像に置き換え',
+      'admin.wechatReuploadNote': '変更しない場合は現在のQRコードを保持します。',
       'admin.manageTitle': 'QRリンク管理',
       'admin.searchPlaceholder': '項目名 / 短縮リンクで検索...',
       'admin.sortByName': '名前',
@@ -560,7 +590,9 @@
       'app.forever': '無期限',
       'app.reservedPath': 'この短縮リンク名はシステムで予約されているため、別の名前を指定してください',
       'app.invalidExpiry': '無効な有効期限です',
-      'app.invalidInput': '無効な入力です'
+      'app.invalidInput': '無効な入力です',
+      'app.qrInvalid': 'QR画像は有効な画像または http(s) のURLである必要があります',
+      'app.qrTooLarge': 'QR画像が大きすぎます（最大 1 MB）'
     },
 
     ko: {
@@ -604,6 +636,12 @@
       'admin.wechatQr': 'WeChat QR',
       'admin.wechatTooltip': 'WeChat 그룹 QR인 경우 원본 QR을 보여주는 동적 페이지를 사용합니다. 업로드 시 켜거나 끌 수 있습니다.',
       'admin.addButton': 'QR 링크 추가',
+      'admin.addWechat': 'WeChat活码 추가',
+      'admin.createLinkTitle': '일반 링크 추가',
+      'admin.createWechatTitle': 'WeChat活码 추가',
+      'admin.addWechatButton': 'WeChat活码 추가',
+      'admin.reuploadHint': '클릭하거나 새 QR 이미지를 드래그하여 교체',
+      'admin.wechatReuploadNote': '변경하지 않으면 현재 QR 코드를 유지합니다.',
       'admin.manageTitle': 'QR 링크 관리',
       'admin.searchPlaceholder': '항목 이름 / 단축 링크 검색...',
       'admin.sortByName': '이름',
@@ -695,7 +733,9 @@
       'app.forever': '영구',
       'app.reservedPath': '이 단축 링크 이름은 시스템에서 예약되어 있습니다. 다른 이름을 사용하세요',
       'app.invalidExpiry': '잘못된 만료 날짜입니다',
-      'app.invalidInput': '잘못된 입력입니다'
+      'app.invalidInput': '잘못된 입력입니다',
+      'app.qrInvalid': 'QR 이미지는 유효한 이미지 또는 http(s) URL이어야 합니다',
+      'app.qrTooLarge': 'QR 이미지가 너무 큽니다(최대 1MB)'
     },
 
     es: {
@@ -739,6 +779,12 @@
       'admin.wechatQr': 'WeChat QR',
       'admin.wechatTooltip': 'Si es un QR de grupo de WeChat, se mostrará el QR original en la página dinámica. Active o desactive al subir.',
       'admin.addButton': 'Añadir enlace QR',
+      'admin.addWechat': 'Añadir WeChat QR',
+      'admin.createLinkTitle': 'Añadir enlace normal',
+      'admin.createWechatTitle': 'Añadir WeChat QR',
+      'admin.addWechatButton': 'Añadir WeChat QR',
+      'admin.reuploadHint': 'Haga clic o arrastre una nueva imagen QR para reemplazar',
+      'admin.wechatReuploadNote': 'Deje sin cambios para conservar el QR actual.',
       'admin.manageTitle': 'Gestión de enlaces QR',
       'admin.searchPlaceholder': 'Buscar nombre de entrada / enlace corto...',
       'admin.sortByName': 'Nombre',
@@ -830,7 +876,9 @@
       'app.forever': 'Permanente',
       'app.reservedPath': 'Este nombre de enlace corto está reservado por el sistema, elija otro',
       'app.invalidExpiry': 'Fecha de caducidad no válida',
-      'app.invalidInput': 'Entrada no válida'
+      'app.invalidInput': 'Entrada no válida',
+      'app.qrInvalid': 'La imagen QR debe ser una imagen válida o una URL http(s)',
+      'app.qrTooLarge': 'La imagen QR es demasiado grande (máx. 1 MB)'
     },
 
     fr: {
@@ -874,6 +922,12 @@
       'admin.wechatQr': 'WeChat QR',
       'admin.wechatTooltip': 'S\'il s\'agit d\'un QR de groupe WeChat, la page dynamique affiche le QR d\'origine. Activez/désactivez lors du téléversement.',
       'admin.addButton': 'Ajouter un lien QR',
+      'admin.addWechat': 'Ajouter un QR WeChat',
+      'admin.createLinkTitle': 'Ajouter un lien normal',
+      'admin.createWechatTitle': 'Ajouter un QR WeChat',
+      'admin.addWechatButton': 'Ajouter un QR WeChat',
+      'admin.reuploadHint': 'Cliquez ou glissez une nouvelle image QR pour remplacer',
+      'admin.wechatReuploadNote': 'Ne modifiez pas pour conserver le QR actuel.',
       'admin.manageTitle': 'Gestion des liens QR',
       'admin.searchPlaceholder': 'Rechercher nom d\'entrée / lien court...',
       'admin.sortByName': 'Nom',
@@ -965,7 +1019,9 @@
       'app.forever': 'Permanent',
       'app.reservedPath': 'Ce nom de lien court est réservé par le système, veuillez en choisir un autre',
       'app.invalidExpiry': 'Date d\'expiration non valide',
-      'app.invalidInput': 'Entrée non valide'
+      'app.invalidInput': 'Entrée non valide',
+      'app.qrInvalid': 'L\'image QR doit être une image valide ou une URL http(s)',
+      'app.qrTooLarge': 'L\'image QR est trop volumineuse (max 1 Mo)'
     },
 
     de: {
@@ -1009,6 +1065,12 @@
       'admin.wechatQr': 'WeChat QR',
       'admin.wechatTooltip': 'Bei einem WeChat-Gruppen-QR wird der Original-QR auf der Live-Seite angezeigt. Beim Hochladen umschaltbar.',
       'admin.addButton': 'QR-Link hinzufügen',
+      'admin.addWechat': 'WeChat-QR hinzufügen',
+      'admin.createLinkTitle': 'Normalen Link hinzufügen',
+      'admin.createWechatTitle': 'WeChat-QR hinzufügen',
+      'admin.addWechatButton': 'WeChat-QR hinzufügen',
+      'admin.reuploadHint': 'Klicken oder ziehen Sie ein neues QR-Bild zum Ersetzen',
+      'admin.wechatReuploadNote': 'Unverändert lassen, um den aktuellen QR-Code beizubehalten.',
       'admin.manageTitle': 'QR-Link-Verwaltung',
       'admin.searchPlaceholder': 'Eintragsname / Kurzlink suchen...',
       'admin.sortByName': 'Name',
@@ -1100,7 +1162,9 @@
       'app.forever': 'Dauerhaft',
       'app.reservedPath': 'Dieser Kurzlink-Name ist vom System reserviert, bitte wählen Sie einen anderen',
       'app.invalidExpiry': 'Ungültiges Ablaufdatum',
-      'app.invalidInput': 'Ungültige Eingabe'
+      'app.invalidInput': 'Ungültige Eingabe',
+      'app.qrInvalid': 'Das QR-Bild muss ein gültiges Bild oder eine http(s)-URL sein',
+      'app.qrTooLarge': 'Das QR-Bild ist zu groß (max. 1 MB)'
     },
   };
 

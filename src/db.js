@@ -1,9 +1,9 @@
-// Data layer: schema/migration, input validation, and all CRUD / cleanup /
-// KV-migration operations against the D1 database.
+// Data layer: schema/migration, input validation, and all CRUD / cleanup
+// operations against the D1 database.
 //
-// `DB` and `KV_BINDING` are live bindings imported from state.js; they are
-// populated by initState(env) before any of these functions run.
-import { DB, KV_BINDING } from './state.js';
+// `DB` is a live binding imported from state.js; it is populated by
+// initState(env) before any of these functions run.
+import { DB } from './state.js';
 
 // Short-link paths that are reserved and must never be stored as mappings
 // (they collide with the admin dashboard, static assets, or meta endpoints).
@@ -22,10 +22,19 @@ const banPath = [
 const PATH_MAX = 64;
 const NAME_MAX = 128;
 const TARGET_MAX = 2048;
+// WeChat live-code image data (a data:image/ URL) must stay within D1's safe
+// per-row size budget. 1 MiB base64 is ~1.4 MB of text, well under the limit.
+const QR_MAX = 1048576;
 const PATH_RE = /^[a-zA-Z0-9-_]+$/;
 
 // Database initialization
+let dbInitialized = false;
 async function initDatabase() {
+  // Idempotent across requests within the same isolate: the schema/migration
+  // is created once, so subsequent requests skip the DDL round-trips.
+  if (dbInitialized) return;
+  dbInitialized = true;
+
   // Create table
   await DB.prepare(`
     CREATE TABLE IF NOT EXISTS mappings (
@@ -198,9 +207,10 @@ function normalizeTarget(target) {
   return /^https?:\/\//i.test(target) ? target : 'https://' + target;
 }
 
-// Validate path/target/name before persisting. `target` is expected to already
-// carry a scheme because normalizeTarget() runs upstream in the API handler.
-function validateMappingInput(path, target, name, expiry) {
+// Validate path/target/name/expiry/QR before persisting. `target` is expected
+// to already carry a scheme because normalizeTarget() runs upstream in the API
+// handler. `qrCodeData` validation only applies to WeChat live-code entries.
+function validateMappingInput(path, target, name, expiry, isWechat = false, qrCodeData = null) {
   if (!PATH_RE.test(path)) {
     throw new Error('PATH_INVALID');
   }
@@ -220,6 +230,18 @@ function validateMappingInput(path, target, name, expiry) {
   if (expiry && isNaN(Number(expiry))) {
     throw new Error('INVALID_EXPIRY');
   }
+  // WeChat live-code image: required and must be an image data URL or http(s) URL
+  if (isWechat) {
+    if (!qrCodeData) {
+      throw new Error('WECHAT_REQUIRES_QR');
+    }
+    if (!/^data:image\//.test(qrCodeData) && !/^https?:\/\//i.test(qrCodeData)) {
+      throw new Error('QR_INVALID');
+    }
+    if (qrCodeData.length > QR_MAX) {
+      throw new Error('QR_TOO_LARGE');
+    }
+  }
 }
 
 async function createMapping(path, target, name, expiry, enabled = true, isWechat = false, qrCodeData = null) {
@@ -232,16 +254,8 @@ async function createMapping(path, target, name, expiry, enabled = true, isWecha
     throw new Error('RESERVED_PATH');
   }
 
-  validateMappingInput(path, target, name, expiry);
-
-  if (expiry && isNaN(Number(expiry))) {
-    throw new Error('INVALID_EXPIRY');
-  }
-
-  // WeChat QR codes require the original QR image data
-  if (isWechat && !qrCodeData) {
-    throw new Error('WECHAT_REQUIRES_QR');
-  }
+  // Single source of validation (path/target/name/expiry/QR incl. expiry NaN).
+  validateMappingInput(path, target, name, expiry, isWechat, qrCodeData);
 
   await DB.prepare(`
     INSERT INTO mappings (path, target, name, expiry, enabled, isWechat, qrCodeData, created_at)
@@ -293,13 +307,8 @@ async function updateMapping(originalPath, newPath, target, name, expiry, enable
     throw new Error('RESERVED_PATH');
   }
 
-  validateMappingInput(newPath, target, name, expiry);
-
-  if (expiry && isNaN(Number(expiry))) {
-    throw new Error('INVALID_EXPIRY');
-  }
-
-  // Reuse the existing QR data when none is supplied
+  // Reuse the existing QR data when none is supplied (editing a WeChat code
+  // without re-uploading must not wipe its image).
   if (!qrCodeData && isWechat) {
     const existingMapping = await DB.prepare(`
       SELECT qrCodeData
@@ -312,10 +321,9 @@ async function updateMapping(originalPath, newPath, target, name, expiry, enable
     }
   }
 
-  // WeChat QR codes must have QR image data
-  if (isWechat && !qrCodeData) {
-    throw new Error('WECHAT_REQUIRES_QR');
-  }
+  // Single source of validation (path/target/name/expiry/QR incl. expiry NaN
+  // and the WeChat-requires-QR rule). Runs after reuse so inherited data passes.
+  validateMappingInput(newPath, target, name, expiry, isWechat, qrCodeData);
 
   const stmt = DB.prepare(`
     UPDATE mappings 
@@ -385,10 +393,11 @@ async function getExpiringMappings() {
   return mappings;
 }
 
-// Batch-cleanup of expired mappings
+// Batch-cleanup of expired mappings. Returns the total number deleted.
 async function cleanupExpiredMappings(batchSize = 100) {
   const now = Date.now().toString();
-  
+  let deleted = 0;
+
   while (true) {
     // Fetch a batch of expired mappings
     const batch = await DB.prepare(`
@@ -411,42 +420,15 @@ async function cleanupExpiredMappings(batchSize = 100) {
       WHERE path IN (${placeholders})
     `).bind(...paths).run();
 
+    deleted += batch.results.length;
+
     // Stop once a full batch is no longer returned
     if (batch.results.length < batchSize) {
       break;
     }
   }
-}
 
-// Data migration from KV
-async function migrateFromKV() {
-  let cursor = null;
-  do {
-    const listResult = await KV_BINDING.list({ cursor, limit: 1000 });
-    
-    for (const key of listResult.keys) {
-      if (!banPath.includes(key.name)) {
-        const value = await KV_BINDING.get(key.name, { type: "json" });
-        if (value) {
-          try {
-            await createMapping(
-              key.name,
-              value.target,
-              value.name,
-              value.expiry,
-              value.enabled,
-              value.isWechat,
-              value.qrCodeData
-            );
-          } catch (e) {
-            console.error(`Failed to migrate ${key.name}:`, e);
-          }
-        }
-      }
-    }
-    
-    cursor = listResult.cursor;
-  } while (cursor);
+  return deleted;
 }
 
 export {
@@ -454,6 +436,7 @@ export {
   PATH_MAX,
   NAME_MAX,
   TARGET_MAX,
+  QR_MAX,
   PATH_RE,
   normalizeTarget,
   validateMappingInput,
@@ -464,6 +447,5 @@ export {
   pinMapping,
   updateMapping,
   getExpiringMappings,
-  cleanupExpiredMappings,
-  migrateFromKV
+  cleanupExpiredMappings
 };
