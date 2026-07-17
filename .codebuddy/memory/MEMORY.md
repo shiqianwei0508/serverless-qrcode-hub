@@ -3,7 +3,7 @@
 ## serverless-qrcode-hub
 
 - Cloudflare Workers 项目，使用 D1 数据库存储二维码映射，支持活码重定向。
-- 后端单文件 `index.js`，前端 `dist/login.html` + `dist/admin.html`。
+- 后端已轻量拆分：`index.js`（入口/路由/鉴权/接口分发）+ `src/state.js`（共享运行时状态 `DB`/`KV_BINDING` + `initState()`，用 ES module live binding 跨模块共享）+ `src/util.js`（`escapeHtml`）+ `src/db.js`（数据层：建表迁移、CRUD、输入校验、`banPath`、KV 迁移）+ `src/pages.js`（公开页 `PUBLIC_I18N`/`pickLang`/`renderExpiredPage`/`renderWechatPage`）。`wrangler` 部署时 esbuild 将 `src/*` 打包为单 Worker，运行行为等价于原单文件。前端 `dist/login.html` + `dist/admin.html`。
 - 设计系统：`dist/theme.css`（专业商务风，覆盖 DaisyUI v5 主题变量）+ `dist/common.js`（首屏主题/切换/统一 Toast，登录页与后台共享）。
 - 多语言：共享引擎 `dist/i18n.js`（字典 `DICT` + `t()` / `detectLang()` / `applyI18n()` / `setLang()` / `createLangSwitcher()`）。支持 en/zh/ru/ja/ko/es/fr/de 共 8 种语言，`en` 为默认值与回退；静态文案用 `data-i18n*` 属性，动态内容用 `I18N.t('admin.*'/'app.*'/'login.*')`。访客端公开页（过期/微信活码）由 `index.js` 的 `PUBLIC_I18N` + `pickLang(request)` 处理（回落英文，并对 `name` 做 `escapeHtml`）。
 - 文档：`docs/CODE_DESIGN.md` 含完整英文代码设计说明；`docs/zh/CODE_DESIGN.md` 为中文版。双语约定：**英文在规范路径，中文在 `docs/zh/`**（如 `README.md` + `docs/zh/README.md`、`README.v1.md` + `docs/zh/README.v1.md`）。从 `docs/zh/` 链接根目录文件用 `../../`。所有文档更新须中英同步。
