@@ -1,5 +1,6 @@
 ---
 name: ui-optimization-design-system
+status: completed
 overview: 为 serverless-qrcode-hub 建立统一的"专业商务风"设计系统，并应用到登录页、管理后台与访客端(活码/过期页)，重点提升视觉美感、交互体验与移动端响应式，通过提取共享样式/脚本消除当前两页重复代码。
 design:
   architecture:
