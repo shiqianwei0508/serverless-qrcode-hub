@@ -33,7 +33,6 @@
       'login.signingIn': 'Signing in...',
       'login.loginSuccess': 'Signed in successfully',
       'login.networkError': 'Network error, please try again later',
-      'login.starText': 'If you find this useful, please give it a Star ⭐️',
 
       'admin.title': 'Dashboard · QR Code Hub',
       'admin.dashboard': 'Dashboard',
@@ -161,7 +160,7 @@
       'login.signingIn': '登录中...',
       'login.loginSuccess': '登录成功',
       'login.networkError': '网络错误，请稍后重试',
-      'login.starText': '如果觉得有用，请给我一个 Star ⭐️',
+
 
       'admin.title': '管理面板 · 二维码中枢',
       'admin.dashboard': '管理面板',
@@ -289,7 +288,7 @@
       'login.signingIn': 'Вход...',
       'login.loginSuccess': 'Вход выполнен',
       'login.networkError': 'Сетевая ошибка, повторите попытку позже',
-      'login.starText': 'Если вам полезно, поставьте Star ⭐️',
+
 
       'admin.title': 'Панель · QR Code Hub',
       'admin.dashboard': 'Панель',
@@ -417,7 +416,7 @@
       'login.signingIn': 'ログイン中...',
       'login.loginSuccess': 'ログインしました',
       'login.networkError': 'ネットワークエラー。後でもう一度お試しください',
-      'login.starText': '役に立ったら、Star ⭐️ をお願いします',
+
 
       'admin.title': 'ダッシュボード · QR Code Hub',
       'admin.dashboard': 'ダッシュボード',
@@ -545,7 +544,7 @@
       'login.signingIn': '로그인 중...',
       'login.loginSuccess': '로그인 성공',
       'login.networkError': '네트워크 오류가 발생했습니다. 나중에 다시 시도하세요',
-      'login.starText': '유용하셨다면 Star ⭐️ 를 눌러주세요',
+
 
       'admin.title': '대시보드 · QR Code Hub',
       'admin.dashboard': '대시보드',
@@ -673,7 +672,7 @@
       'login.signingIn': 'Iniciando sesión...',
       'login.loginSuccess': 'Sesión iniciada',
       'login.networkError': 'Error de red, inténtelo más tarde',
-      'login.starText': 'Si le resulta útil, dele una Star ⭐️',
+
 
       'admin.title': 'Panel · QR Code Hub',
       'admin.dashboard': 'Panel',
@@ -801,7 +800,7 @@
       'login.signingIn': 'Connexion...',
       'login.loginSuccess': 'Connecté',
       'login.networkError': 'Erreur réseau, réessayez plus tard',
-      'login.starText': 'Si cela vous est utile, mettez une Star ⭐️',
+
 
       'admin.title': 'Tableau de bord · QR Code Hub',
       'admin.dashboard': 'Tableau de bord',
@@ -929,7 +928,7 @@
       'login.signingIn': 'Anmelden...',
       'login.loginSuccess': 'Erfolgreich angemeldet',
       'login.networkError': 'Netzwerkfehler, bitte versuchen Sie es später erneut',
-      'login.starText': 'Wenn es nützlich ist, geben Sie mir eine Star ⭐️',
+
 
       'admin.title': 'Dashboard · QR Code Hub',
       'admin.dashboard': 'Dashboard',
