@@ -48,7 +48,12 @@
 
 ```
 serverless-qrcode-hub/
-├── index.js            # Worker 入口：数据库初始化、路由、重定向、定时任务
+├── index.js            # Worker 入口：路由、鉴权、API 分发（import src/*）
+├── src/                # 后端模块（由 esbuild 打包为单一 Worker）
+│   ├── state.js        # 共享运行时状态：DB / KV_BINDING + initState(env)
+│   ├── util.js         # escapeHtml()
+│   ├── db.js           # 数据层：建表/迁移、CRUD、输入校验、banPath
+│   └── pages.js        # 公开页：PUBLIC_I18N、pickLang、过期页/微信页渲染函数
 ├── wrangler.toml       # Wrangler 部署配置（D1 绑定、cron、Assets、环境变量）
 ├── package.json        # 脚本与依赖（仅 wrangler 开发依赖）
 ├── pnpm-lock.yaml
@@ -1140,7 +1145,7 @@ CREATE INDEX IF NOT EXISTS idx_enabled_expiry ON mappings(enabled, expiry);
 
 | 维度 | 数据 |
 |------|------|
-| 后端 | `index.js` ~808 行，单文件 Worker |
+| 后端 | `index.js`（入口）+ `src/{state,util,db,pages}.js`；由 esbuild 打包为单一 Worker |
 | 前端 admin | `admin.html` ~1288 行（HTML + 内联 JS） |
 | 前端 login | `login.html` ~142 行 |
 | 共享代码 | `common.js` 87 行 + `theme.css` 254 行 + `i18n.js` |

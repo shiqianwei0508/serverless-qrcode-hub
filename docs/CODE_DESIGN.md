@@ -48,7 +48,12 @@ This document explains `serverless-qrcode-hub` file by file, function by functio
 
 ```
 serverless-qrcode-hub/
-├── index.js            # Worker entry: DB init, routing, redirect, scheduled task
+├── index.js            # Worker entry: routing, auth, API dispatch (imports src/*)
+├── src/                # backend modules (bundled into one Worker by esbuild)
+│   ├── state.js        # shared runtime state: DB / KV_BINDING + initState(env)
+│   ├── util.js         # escapeHtml()
+│   ├── db.js           # data layer: schema/migration, CRUD, validation, banPath
+│   └── pages.js        # public pages: PUBLIC_I18N, pickLang, expired/WeChat renderers
 ├── wrangler.toml       # Wrangler deploy config (D1 binding, cron, Assets, env vars)
 ├── package.json        # scripts and dependencies (wrangler dev dependency only)
 ├── pnpm-lock.yaml
@@ -1140,7 +1145,7 @@ CREATE INDEX IF NOT EXISTS idx_enabled_expiry ON mappings(enabled, expiry);
 
 | Dimension | Data |
 |-----------|------|
-| Backend | `index.js` ~808 lines, single-file Worker |
+| Backend | `index.js` (entry) + `src/{state,util,db,pages}.js`; bundled into one Worker by esbuild |
 | Frontend admin | `admin.html` ~1288 lines (HTML + inline JS) |
 | Frontend login | `login.html` ~142 lines |
 | Shared code | `common.js` 87 lines + `theme.css` 254 lines + `i18n.js` |
