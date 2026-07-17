@@ -1,141 +1,144 @@
 # serverless-qrcode-hub
 
-苦于微信群聊二维码频繁变动，开发这个能生成永久二维码的工具，**不需要服务器**。基于 Cloudflare Workers 和 D1 实现。
+> 中文文档: [docs/zh/README.md](./docs/zh/README.md)
 
-> 旧版使用的 KV 的免费额度太少，新版本改为基于 D1 存储，500万次读取够用了，建议使用旧版的及时升级，基于 KV 的最后版本是 v1.2.0: [README.v1.md](./README.v1.md)（不建议再使用）
+Tired of WeChat group QR codes changing constantly, I built this tool to generate permanent QR codes — **no server required**. It is built on Cloudflare Workers and D1.
+
+> The old version used KV, whose free quota was too small. The new version uses D1 storage instead (50 million reads is more than enough). If you are still on the old version, please upgrade. The last KV-based version is v1.2.0: [README.v1.md](./README.v1.md) (no longer recommended).
 >
-> 旧版 KV 迁移到新版的指南: [MIGRATE.md](./MIGRATE.md)
+> Guide for migrating from the old KV version to the new one: [MIGRATE.md](./MIGRATE.md)
 
-## 功能特性
+## Features
 
-- 🔗 生成永久短链接，指向微信群二维码
-- 😋 可当短链接生成器
-- ☁️ 无需服务器
-- 🎨 自定义二维码样式和 Logo
-- 💻 管理后台可随时更新
-- 🔐 密码保护
+- 🔗 Generate permanent short links that point to WeChat group QR codes
+- 😋 Can also be used as a short-link generator
+- ☁️ No server required
+- 🎨 Customizable QR styles and logo
+- 💻 Admin panel for updating links anytime
+- 🔐 Password protection
+- 🌐 Multi-language UI (English, 中文, Русский, 日本語, 한국어, Español, Français, Deutsch)
 
-<a href="https://qrdemo.2020818.xyz" target="_blank">Demo 地址</a>(密码: `demo`)
+<a href="https://qrdemo.2020818.xyz" target="_blank">Demo</a> (password: `demo`)
 
-## 预览图
+## Screenshots
 
-- 登录
+- Login
 
   ![preview-login](./images/preview-login.png)
 
-- 管理后台1：添加普通短链
+- Admin panel 1: add a normal short link
 
   ![preview-admin](./images/preview-admin.png)
 
-- 管理后台2：添加微信二维码
+- Admin panel 2: add a WeChat QR code
 
   ![preview-admin2](./images/preview-admin2.png)
 
-- 管理后台3
+- Admin panel 3
 
   ![preview-admin3](./images/preview-admin3.png)
 
-- 生成二维码
+- Generate a QR code
 
   ![preview-qr](./images/preview-qr.png)
 
-- 管理后台4：编辑
+- Admin panel 4: edit
 
   ![preview-admin4](./images/preview-admin4.png)
 
-- 微信识别
+- WeChat recognition
 
   ![preview-wechat](./images/preview-wechat.jpg)
-  
-- 短链跳转就不展示了，是直接跳转的
 
-## 使用步骤
+- (Short-link redirects are not shown — they redirect directly.)
 
-1. 登录 Cloudflare 并创建 D1 SQL 数据库
+## Setup steps
+
+1. Log in to Cloudflare and create a D1 SQL database
 
    ![](./images/1_1.png)
    ![](./images/1_2.png)
 
-2. 复制 D1 SQL 数据库 ID
+2. Copy the D1 SQL database ID
 
    ![](./images/2_1.png)
 
-3. 回到 GitHub 并 Fork 仓库
+3. Go back to GitHub and fork the repository
 
    ![](./images/3.png)
 
-4. 在 GitHub 打开你 Fork 的仓库的 `wrangler.toml` 文件，点击图中的按钮编辑
+4. In GitHub, open the `wrangler.toml` file of your forked repo and click the edit button shown in the image
 
    ![](./images/4_1.png)
 
-5. 将 `d1_databases` 下的 `database_id` 内容替换为你自己拷贝的 D1 SQL 数据库 ID
+5. Replace the `database_id` under `d1_databases` with your own copied D1 SQL database ID
 
    ![](./images/5_1.png)
 
-6. 回到 Cloudflare 并创建 Worker
+6. Go back to Cloudflare and create a Worker
 
    ![](./images/6.jpg)
 
-7. 选择你 Fork 的 Github 仓库，然后直接点击右下角的 `保存并部署`
+7. Select your forked GitHub repository, then click `Save and Deploy` at the bottom right
 
    ![](./images/7.jpg)
 
-8. 等待部署成功，自动跳转到了这个页面，此时默认分配的 `*.workers.dev` 域名在国内访问较慢，建议绑定自己的域名
+8. Wait for the deployment to succeed. You will be redirected to this page automatically. The default `*.workers.dev` domain assigned is slow to access in mainland China, so it is recommended to bind your own domain
 
    ![](./images/8.jpg)
 
-9. 绑定自定义域名
+9. Bind a custom domain
 
    ![](./images/9.jpg)
 
-10. 设置一个你在 Cloudflare 托管的域名的子域名 
+10. Set a subdomain of a domain you host on Cloudflare
 
-   ![](./images/10.jpg)
+    ![](./images/10.jpg)
 
-11. 按图中步骤设置访问密码，注意密码格式为英文字母和数字，尽量长尽量复杂，推荐使用两段随机生成的uuid字符串作为密码
+11. Set the access password following the steps in the image. Note that the password format is English letters and numbers, as long and complex as possible. It is recommended to use two randomly generated UUID strings as the password
 
-   ![](./images/11.png)
+    ![](./images/11.png)
 
-12. 部署成功，此时已经可以面板上通过默认分配的 `*.workers.dev` 或者你自定义的域名访问了！
+12. Deployment succeeded. You can now access it from the panel via the default `*.workers.dev` domain or your custom domain!
 
-13. 访问并登录后，创建短链接例子
+13. After accessing and logging in, create a short link (example)
 
-   ![](./images/12.png)
-   ![](./images/13.png)
+    ![](./images/12.png)
+    ![](./images/13.png)
 
-14. 创建微信群聊活码例子
+14. Create a WeChat group live-code example
 
-   ![](./images/14.png)
-   ![](./images/15.png)
+    ![](./images/14.png)
+    ![](./images/15.png)
 
-## 自动部署（Cloudflare Workers Builds）
+## Automatic deployment (Cloudflare Workers Builds)
 
-本项目配置了 Cloudflare Workers Builds，推送代码到 GitHub 后会自动从仓库拉取并构建部署，无需手动操作。以下为一次真实构建日志中提取的关键信息：
+This project is configured with Cloudflare Workers Builds. After pushing code to GitHub, it will automatically pull from the repository and build & deploy — no manual operation required. Key information extracted from a real build log:
 
-- **构建环境**：`pnpm@10.11.1`、`nodejs@22.16.0`
-- **依赖安装**：`pnpm install --frozen-lockfile`（依赖见 `pnpm-lock.yaml`，锁文件需保持最新）
-- **部署命令**：`npx wrangler deploy`（当前使用 `wrangler 4.0.0`）
-- **数据库绑定**：D1 数据库 `qrcode_hub`（配置见 `wrangler.toml` 的 `d1_databases`）
-- **定时任务**：`schedule: 0 2 */1 * *`（每 2 天 02:00 触发，用于过期数据自动清理）
-- **静态资源**：管理后台 `dist/admin.html` 通过 `assets` 配置随 Worker 一并发布
+- **Build environment**: `pnpm@10.11.1`, `nodejs@22.16.0`
+- **Dependency install**: `pnpm install --frozen-lockfile` (see `pnpm-lock.yaml`; keep the lock file up to date)
+- **Deploy command**: `npx wrangler deploy` (currently using `wrangler 4.0.0`)
+- **Database binding**: D1 database `qrcode_hub` (configured in `wrangler.toml`'s `d1_databases`)
+- **Scheduled task**: `schedule: 0 2 */1 * *` (triggers at 02:00 every 2 days, for automatic expired-data cleanup)
+- **Static assets**: admin panel `dist/admin.html` is published together with the Worker via the `assets` config
 
-> ⚠️ **Worker 名称需与 CI 期望一致**：CI 系统按 Worker 名称匹配部署目标。若 `wrangler.toml` 中的 `name` 与 CI 期望不一致，构建日志会出现类似警告并被 CI 覆盖部署：
+> ⚠️ **The Worker name must match what CI expects**: The CI system matches the deployment target by Worker name. If the `name` in `wrangler.toml` does not match what CI expects, the build log will show a warning and be overridden by CI:
 > ```
 > [WARNING] Failed to match Worker name. Your config file is using the Worker name "xxx", but the CI system expected "yyy". Overriding using the CI provided Worker name.
 > ```
-> 本仓库已将 `wrangler.toml` 的 `name` 设为 `serverless-qrcode-hub-dev`，与 CI 期望一致（部署地址：`https://serverless-qrcode-hub-dev.sqwei2012.workers.dev`）。你 Fork 后请根据自己在 Cloudflare 创建的 Worker 名称修改此 `name`，以避免该警告。
+> This repository has set `wrangler.toml`'s `name` to `serverless-qrcode-hub-dev`, matching CI's expectation (deployment address: `https://serverless-qrcode-hub-dev.sqwei2012.workers.dev`). After forking, please modify this `name` according to the Worker name you created on Cloudflare to avoid the warning.
 
 ## TODO
 
-- [ ] 实现定时检查过期短链功能
-  - [x] 自动检查过期的短链接
-  - [ ] 发送邮件通知管理员
-  - [x] 自动清理过期数据
-- [ ] 添加访问统计功能
-- [ ] 支持批量导入导出
-- [ ] 支持多租户
-- [ ] 支持多语言
-- [ ] 支持多 Serverless 平台
-- [ ] 手机端快捷更新二维码功能
+- [x] Implement scheduled check for expired short links
+  - [x] Automatically check expired short links
+  - [ ] Send email notification to admin
+  - [x] Automatically clean up expired data
+- [ ] Add visit statistics
+- [ ] Support batch import/export
+- [ ] Support multi-tenancy
+- [x] Support multi-language
+- [ ] Support multiple Serverless platforms
+- [ ] Mobile quick-update QR feature
 
-欢迎提交 Issue 和 Pull Request！
+Issues and Pull Requests are welcome!

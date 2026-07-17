@@ -1,15 +1,15 @@
 /* =========================================================================
- * theme.css — 专业商务风设计系统 (serverless-qrcode-hub)
- * 覆盖 DaisyUI v5 主题变量，统一视觉语言、微交互与响应式细节。
- * 须于 daisyui@5.css 与 tailwindcss@4.js 之后引入。
+ * theme.css — professional business design system (serverless-qrcode-hub)
+ * Overrides DaisyUI v5 theme variables and unifies visuals, micro-interactions and responsive details.
+ * Must be imported after daisyui@5.css and tailwindcss@4.js.
  * ========================================================================= */
 
-/* ---------- 1. 设计令牌：覆盖 DaisyUI 主题变量 ---------- */
+/* ---------- 1. Design tokens: override DaisyUI theme variables ---------- */
 [data-theme="light"] {
-  --color-primary: #2563EB;        /* 企业蓝 */
+  --color-primary: #2563EB;        /* enterprise blue */
   --color-primary-content: #ffffff;
   --color-base-100: #ffffff;
-  --color-base-200: #f1f5f9;       /* slate-100 浅灰底 */
+  --color-base-200: #f1f5f9;       /* slate-100 light background */
   --color-base-300: #e2e8f0;
   --color-base-content: #0f172a;   /* slate-900 */
   --color-secondary: #475569;
@@ -53,7 +53,7 @@
   --border: 1px;
 }
 
-/* ---------- 2. 基础排版 ---------- */
+/* ---------- 2. Base typography ---------- */
 html { scroll-behavior: smooth; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -63,7 +63,7 @@ body {
   letter-spacing: .01em;
 }
 
-/* ---------- 3. 卡片精致化 ---------- */
+/* ---------- 3. Card polish ---------- */
 .card {
   border: 1px solid color-mix(in oklab, var(--color-base-300) 70%, transparent);
   box-shadow: 0 1px 2px rgba(15, 23, 42, .04),
@@ -72,7 +72,7 @@ body {
 }
 .card-title { letter-spacing: -.01em; }
 
-/* ---------- 4. 按钮微交互 ---------- */
+/* ---------- 4. Button micro-interactions ---------- */
 .btn {
   transition: transform .12s ease, background-color .2s ease,
     box-shadow .2s ease, filter .2s ease;
@@ -84,7 +84,7 @@ body {
 }
 .btn-primary:hover { filter: brightness(1.05); }
 
-/* ---------- 5. 输入框聚焦态 ---------- */
+/* ---------- 5. Input focus state ---------- */
 .input:focus,
 .textarea:focus,
 .select:focus {
@@ -93,10 +93,10 @@ body {
   border-color: var(--color-primary);
 }
 
-/* ---------- 6. 模态框入场动画 ---------- */
+/* ---------- 6. Modal entrance animation ---------- */
 .modal-box {
   animation: modalIn .22s cubic-bezier(.16, 1, .3, 1);
-  /* 内容超过视口时允许滚动，保证底部 modal-action（编辑/关闭）在手机端可达 */
+  /* Allow scrolling when content exceeds the viewport so the bottom modal-action (edit/close) stays reachable on mobile */
   max-height: calc(100vh - 4em);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -106,7 +106,7 @@ body {
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* 详情弹窗二维码加载进度条（不确定进度动画） */
+/* Detail modal QR loading progress bar (indeterminate animation) */
 @keyframes progressIndeterminate {
   0%   { transform: translateX(-100%); width: 40%; }
   50%  { width: 65%; }
@@ -117,7 +117,7 @@ body {
   will-change: transform, width;
 }
 
-/* ---------- 7. 统一 Toast / Alert ---------- */
+/* ---------- 7. Unified Toast / Alert ---------- */
 #alertContainer {
   position: fixed;
   top: 1rem;
@@ -140,7 +140,7 @@ body {
   transition: opacity .25s ease, transform .25s ease;
 }
 
-/* ---------- 8. 骨架屏微光 ---------- */
+/* ---------- 8. Skeleton shimmer ---------- */
 .skeleton {
   position: relative;
   overflow: hidden;
@@ -156,7 +156,7 @@ body {
 }
 @keyframes shimmer { 100% { transform: translateX(100%); } }
 
-/* ---------- 9. 卡片网格 ---------- */
+/* ---------- 9. Card grid ---------- */
 .mapping-card {
   transition: box-shadow .2s ease, transform .15s ease, border-color .2s ease;
   border: 1px solid color-mix(in oklab, var(--color-base-300) 70%, transparent);
@@ -173,7 +173,7 @@ body {
   transform: scale(.95);
 }
 
-/* ---------- 10. 登录页 ---------- */
+/* ---------- 10. Login page ---------- */
 .auth-page {
   min-height: 100vh;
   display: flex;
@@ -201,7 +201,7 @@ body {
 }
 .brand-logo img { width: 1.75rem; height: 1.75rem; filter: brightness(0) invert(1); }
 
-/* ---------- 11. 管理后台顶栏 ---------- */
+/* ---------- 11. Admin top bar ---------- */
 .app-navbar {
   position: sticky; top: 0; z-index: 30;
   backdrop-filter: blur(10px);
@@ -209,7 +209,7 @@ body {
   border-bottom: 1px solid color-mix(in oklab, var(--color-base-300) 70%, transparent);
 }
 
-/* ---------- 12. 区块标题（带左侧强调色条） ---------- */
+/* ---------- 12. Section title (left accent bar) ---------- */
 .section-title {
   position: relative;
   padding-left: .75rem;
@@ -223,7 +223,7 @@ body {
   background: linear-gradient(180deg, var(--color-primary), var(--color-accent));
 }
 
-/* ---------- 13. 上传识别区 ---------- */
+/* ---------- 13. Upload / recognition area ---------- */
 .upload-area {
   background: color-mix(in oklab, var(--color-primary) 4%, transparent);
   border-color: color-mix(in oklab, var(--color-primary) 35%, transparent);
@@ -239,7 +239,7 @@ body {
   border-color: var(--color-primary);
 }
 
-/* ---------- 14. 响应式：移动端微调 ---------- */
+/* ---------- 14. Responsive: mobile tweaks ---------- */
 @media (max-width: 768px) {
   .card-body { padding: 1rem; }
   #alertContainer { width: calc(100% - 2rem); }
@@ -247,7 +247,7 @@ body {
   .modal-box { padding: 1.25rem; }
 }
 
-/* ---------- 15. 响应式：超小屏幕（<480px）---------- */
+/* ---------- 15. Responsive: extra small (<480px) ---------- */
 @media (max-width: 480px) {
   html { font-size: 15px; }
   .btn { font-size: 0.8125rem; }
@@ -257,14 +257,14 @@ body {
     padding-left: 0.5rem;
     padding-right: 0.5rem;
   }
-  /* 创建面板内的卡片 */
+  /* Card inside the create panel */
   .card.bg-base-200\/60 { padding: 1rem !important; }
-  /* 上传区域 */
+  /* Upload area */
   .upload-area { padding: 1rem !important; }
   .upload-area svg { width: 2rem; height: 2rem; }
   .upload-area p { font-size: 0.875rem; }
-  /* 筛选按钮组：超小屏隐藏文字 */
+  /* Filter button group: hide text on extra-small screens */
   .filter-btn-group .btn .hidden.sm\\:inline { display: none !important; }
-  /* 操作按钮组 */
+  /* Action button group */
   .btn-group .btn, .join .btn { font-size: 0.75rem; }
 }

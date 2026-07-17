@@ -10,9 +10,116 @@ const banPath = [
   'favicon.svg',
 ];
 
-// 数据库初始化
+// Public (end-user) pages are rendered on the server. The visitor's language is
+// detected from the Accept-Language header and falls back to English.
+const PUBLIC_LANGS = ['en', 'zh', 'ru', 'ja', 'ko', 'es', 'fr', 'de'];
+const PUBLIC_I18N = {
+  en: {
+    expiredTitle: 'Link Expired',
+    expiredHeading: 'has expired',
+    expiredOn: 'Expired on',
+    expiredFooter: 'Contact the admin to update this link',
+    wechatTitle: 'WeChat QR',
+    wechatHeading: 'WeChat QR',
+    wechatNotice: 'Long-press to recognize the QR code below',
+    wechatFooter: 'If the QR code expires, contact the author to update it'
+  },
+  zh: {
+    expiredTitle: '链接已过期',
+    expiredHeading: '已过期',
+    expiredOn: '过期时间',
+    expiredFooter: '如需访问，请联系管理员更新链接',
+    wechatTitle: '微信群二维码',
+    wechatHeading: '微信群二维码',
+    wechatNotice: '请长按识别下方二维码',
+    wechatFooter: '二维码失效请联系作者更新'
+  },
+  ru: {
+    expiredTitle: 'Ссылка устарела',
+    expiredHeading: 'устарела',
+    expiredOn: 'Дата окончания',
+    expiredFooter: 'Для доступа обратитесь к администратору',
+    wechatTitle: 'WeChat QR',
+    wechatHeading: 'WeChat QR',
+    wechatNotice: 'Нажмите и удерживайте, чтобы распознать QR-код ниже',
+    wechatFooter: 'Если QR-код устарел, обратитесь к автору для обновления'
+  },
+  ja: {
+    expiredTitle: 'リンクは期限切れです',
+    expiredHeading: 'は期限切れです',
+    expiredOn: '有効期限',
+    expiredFooter: 'アクセスするには管理者にリンクの更新を依頼してください',
+    wechatTitle: 'WeChat QR',
+    wechatHeading: 'WeChat QR',
+    wechatNotice: '下のQRコードを長押しして認識してください',
+    wechatFooter: 'QRコードが無効な場合は作者に更新を依頼してください'
+  },
+  ko: {
+    expiredTitle: '링크가 만료되었습니다',
+    expiredHeading: '만료되었습니다',
+    expiredOn: '만료 날짜',
+    expiredFooter: '접속하려면 관리자에게 링크 업데이트를 요청하세요',
+    wechatTitle: 'WeChat QR',
+    wechatHeading: 'WeChat QR',
+    wechatNotice: '아래 QR 코드를 길게 눌러 인식하세요',
+    wechatFooter: 'QR 코드가 만료되면 작성자에게 업데이트를 요청하세요'
+  },
+  es: {
+    expiredTitle: 'Enlace caducado',
+    expiredHeading: 'ha caducado',
+    expiredOn: 'Caducó el',
+    expiredFooter: 'Para acceder, contacte al administrador para actualizar el enlace',
+    wechatTitle: 'WeChat QR',
+    wechatHeading: 'WeChat QR',
+    wechatNotice: 'Mantenga pulsado para reconocer el código QR de abajo',
+    wechatFooter: 'Si el código QR caduca, contacte al autor para actualizarlo'
+  },
+  fr: {
+    expiredTitle: 'Lien expiré',
+    expiredHeading: 'a expiré',
+    expiredOn: 'Expiré le',
+    expiredFooter: 'Pour y accéder, contactez l\'administrateur pour mettre à jour le lien',
+    wechatTitle: 'WeChat QR',
+    wechatHeading: 'WeChat QR',
+    wechatNotice: 'Appuyez longuement pour reconnaître le QR code ci-dessous',
+    wechatFooter: 'Si le QR code expire, contactez l\'auteur pour le mettre à jour'
+  },
+  de: {
+    expiredTitle: 'Link abgelaufen',
+    expiredHeading: 'ist abgelaufen',
+    expiredOn: 'Abgelaufen am',
+    expiredFooter: 'Wenden Sie sich an den Administrator, um den Link zu aktualisieren',
+    wechatTitle: 'WeChat QR',
+    wechatHeading: 'WeChat QR',
+    wechatNotice: 'Halten Sie zum Erkennen des QR-Codes unten lang',
+    wechatFooter: 'Wenn der QR-Code abläuft, wenden Sie sich an den Autor zur Aktualisierung'
+  }
+};
+
+// Escape HTML in user-provided content before inserting it into generated pages.
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Pick the public-page language from the Accept-Language header.
+function pickLang(request) {
+  const header = request.headers.get('Accept-Language') || '';
+  const parts = header.split(',');
+  for (const part of parts) {
+    const code = part.split(';')[0].trim().split('-')[0].toLowerCase();
+    if (PUBLIC_LANGS.indexOf(code) !== -1) return code;
+  }
+  return 'en';
+}
+
+// Database initialization
 async function initDatabase() {
-  // 创建表
+  // Create table
   await DB.prepare(`
     CREATE TABLE IF NOT EXISTS mappings (
       path TEXT PRIMARY KEY,
@@ -24,11 +131,11 @@ async function initDatabase() {
     )
   `).run();
 
-  // 检查是否需要添加新列
+  // Check whether new columns need to be added
   const tableInfo = await DB.prepare("PRAGMA table_info(mappings)").all();
   const columns = tableInfo.results.map(col => col.name);
 
-  // 添加 isWechat 列（如果不存在）
+  // Add isWechat column if it does not exist
   if (!columns.includes('isWechat')) {
     await DB.prepare(`
       ALTER TABLE mappings 
@@ -36,7 +143,7 @@ async function initDatabase() {
     `).run();
   }
 
-  // 添加 qrCodeData 列（如果不存在）
+  // Add qrCodeData column if it does not exist
   if (!columns.includes('qrCodeData')) {
     await DB.prepare(`
       ALTER TABLE mappings 
@@ -44,7 +151,7 @@ async function initDatabase() {
     `).run();
   }
 
-  // 添加 pinned 列（如果不存在），用于条目全局置顶
+  // Add pinned column if it does not exist (used for global pinning)
   if (!columns.includes('pinned')) {
     await DB.prepare(`
       ALTER TABLE mappings 
@@ -52,7 +159,7 @@ async function initDatabase() {
     `).run();
   }
 
-  // 添加索引
+  // Add indexes
   await DB.prepare(`
     CREATE INDEX IF NOT EXISTS idx_expiry ON mappings(expiry)
   `).run();
@@ -61,13 +168,13 @@ async function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_created_at ON mappings(created_at)
   `).run();
 
-  // 组合索引：用于启用状态和过期时间的组合查询
+  // Composite index for enabled-status + expiry lookups
   await DB.prepare(`
     CREATE INDEX IF NOT EXISTS idx_enabled_expiry ON mappings(enabled, expiry)
   `).run();
 
-  // 数据迁移：将旧格式日期字符串转为毫秒时间戳
-  // Step 1: 迁移 expiry 字段（YYYY-MM-DD → 毫秒时间戳）
+  // Data migration: convert legacy date strings to millisecond timestamps
+  // Step 1: migrate expiry (YYYY-MM-DD -> ms timestamp)
   const oldExpiryCount = await DB.prepare(`
     SELECT COUNT(*) as cnt FROM mappings 
     WHERE expiry IS NOT NULL AND expiry GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
@@ -89,9 +196,9 @@ async function initDatabase() {
     console.log(`Expiry migration complete: ${migrated} rows`);
   }
 
-  // Step 2: 迁移 created_at 字段（YYYY-MM-DD HH:MM:SS → 毫秒时间戳）
-  // 注意：created_at 的迁移独立于 expiry，因为永久链接的 expiry 为 NULL，
-  // 不能依赖 expiry 的 GLOB 检测来触发 created_at 迁移
+  // Step 2: migrate created_at (YYYY-MM-DD HH:MM:SS -> ms timestamp)
+  // Note: created_at migration is independent of expiry, because permanent
+  // links have a NULL expiry and cannot be detected via the expiry GLOB check.
   const oldCreatedAtCount = await DB.prepare(`
     SELECT COUNT(*) as cnt FROM mappings
     WHERE created_at IS NOT NULL AND created_at LIKE '% %'
@@ -104,7 +211,7 @@ async function initDatabase() {
     `).all();
     let migrated = 0;
     for (const row of rows.results) {
-      // 跳过已经是时间戳格式的（不应该出现，但做防御）
+      // Skip values already in timestamp format (should not happen, but defensive)
       if (/^\d{13}$/.test(row.created_at)) continue;
       const newCreatedAt = new Date(row.created_at.replace(' ', 'T') + 'Z').getTime().toString();
       await DB.prepare(`
@@ -116,7 +223,7 @@ async function initDatabase() {
   }
 }
 
-// Cookie 相关函数
+// Cookie-related helpers
 function verifyAuthCookie(request, env) {
   const cookie = request.headers.get('Cookie') || '';
   const authToken = cookie.split(';').find(c => c.trim().startsWith('token='));
@@ -138,13 +245,13 @@ function clearAuthCookie() {
   };
 }
 
-// 数据库操作相关函数
+// Database operation helpers
 async function listMappings(page = 1, pageSize = 10, search = '') {
   const offset = (page - 1) * pageSize;
   const hasSearch = typeof search === 'string' && search.trim() !== '';
   const searchTerm = hasSearch ? `%${search.trim()}%` : null;
 
-  // 使用单个查询获取分页数据和总数
+  // Fetch paginated rows and the total count in a single query
   const results = await DB.prepare(`
     WITH filtered_mappings AS (
       SELECT * FROM mappings 
@@ -200,21 +307,21 @@ async function listMappings(page = 1, pageSize = 10, search = '') {
 
 async function createMapping(path, target, name, expiry, enabled = true, isWechat = false, qrCodeData = null) {
   if (!path || !target || typeof path !== 'string' || typeof target !== 'string') {
-    throw new Error('Invalid input');
+    throw new Error('INVALID_INPUT');
   }
 
-  // 检查短链名是否在禁用列表中
+  // Reject reserved short-link names
   if (banPath.includes(path)) {
-    throw new Error('该短链名已被系统保留，请使用其他名称');
+    throw new Error('RESERVED_PATH');
   }
 
   if (expiry && isNaN(Number(expiry))) {
-    throw new Error('Invalid expiry date');
+    throw new Error('INVALID_EXPIRY');
   }
 
-  // 如果是微信二维码，必须提供二维码数据
+  // WeChat QR codes require the original QR image data
   if (isWechat && !qrCodeData) {
-    throw new Error('微信二维码必须提供原始二维码数据');
+    throw new Error('WECHAT_REQUIRES_QR');
   }
 
   await DB.prepare(`
@@ -234,12 +341,12 @@ async function createMapping(path, target, name, expiry, enabled = true, isWecha
 
 async function deleteMapping(path) {
   if (!path || typeof path !== 'string') {
-    throw new Error('Invalid input');
+    throw new Error('INVALID_INPUT');
   }
 
-  // 检查是否在禁用列表中
+  // Reject reserved short-link names
   if (banPath.includes(path)) {
-    throw new Error('系统保留的短链名无法删除');
+    throw new Error('RESERVED_PATH');
   }
 
   await DB.prepare('DELETE FROM mappings WHERE path = ?').bind(path).run();
@@ -247,7 +354,7 @@ async function deleteMapping(path) {
 
 async function pinMapping(path, pinned) {
   if (!path || typeof path !== 'string') {
-    throw new Error('Invalid input');
+    throw new Error('INVALID_INPUT');
   }
 
   await DB.prepare(`
@@ -259,19 +366,19 @@ async function pinMapping(path, pinned) {
 
 async function updateMapping(originalPath, newPath, target, name, expiry, enabled = true, isWechat = false, qrCodeData = null) {
   if (!originalPath || !newPath || !target) {
-    throw new Error('Invalid input');
+    throw new Error('INVALID_INPUT');
   }
 
-  // 检查新短链名是否在禁用列表中
+  // Reject reserved short-link names
   if (banPath.includes(newPath)) {
-    throw new Error('该短链名已被系统保留，请使用其他名称');
+    throw new Error('RESERVED_PATH');
   }
 
   if (expiry && isNaN(Number(expiry))) {
-    throw new Error('Invalid expiry date');
+    throw new Error('INVALID_EXPIRY');
   }
 
-  // 如果没有提供新的二维码数据，获取原有的二维码数据
+  // Reuse the existing QR data when none is supplied
   if (!qrCodeData && isWechat) {
     const existingMapping = await DB.prepare(`
       SELECT qrCodeData
@@ -284,9 +391,9 @@ async function updateMapping(originalPath, newPath, target, name, expiry, enable
     }
   }
 
-  // 如果是微信二维码，必须有二维码数据
+  // WeChat QR codes must have QR image data
   if (isWechat && !qrCodeData) {
-    throw new Error('微信二维码必须提供原始二维码数据');
+    throw new Error('WECHAT_REQUIRES_QR');
   }
 
   const stmt = DB.prepare(`
@@ -308,12 +415,12 @@ async function updateMapping(originalPath, newPath, target, name, expiry, enable
 }
 
 async function getExpiringMappings() {
-  // 今天本地 0 点的时间戳（毫秒）
+  // Start of today (local midnight), in ms
   const now = Date.now();
-  // 3天后的时间戳
+  // Timestamp 3 days from now
   const threeDaysLater = now + 3 * 24 * 60 * 60 * 1000;
 
-  // 使用单个查询获取所有过期和即将过期的映射
+  // Fetch all expired and soon-to-expire mappings in one query
   const results = await DB.prepare(`
     WITH categorized_mappings AS (
       SELECT 
@@ -357,12 +464,12 @@ async function getExpiringMappings() {
   return mappings;
 }
 
-// 添加新的批量清理过期映射的函数
+// Batch-cleanup of expired mappings
 async function cleanupExpiredMappings(batchSize = 100) {
   const now = Date.now().toString();
   
   while (true) {
-    // 获取一批过期的映射
+    // Fetch a batch of expired mappings
     const batch = await DB.prepare(`
       SELECT path 
       FROM mappings 
@@ -375,7 +482,7 @@ async function cleanupExpiredMappings(batchSize = 100) {
       break;
     }
 
-    // 批量删除这些映射
+    // Delete the batch
     const paths = batch.results.map(row => row.path);
     const placeholders = paths.map(() => '?').join(',');
     await DB.prepare(`
@@ -383,14 +490,14 @@ async function cleanupExpiredMappings(batchSize = 100) {
       WHERE path IN (${placeholders})
     `).bind(...paths).run();
 
-    // 如果获取的数量小于 batchSize，说明已经处理完所有过期映射
+    // Stop once a full batch is no longer returned
     if (batch.results.length < batchSize) {
       break;
     }
   }
 }
 
-// 数据迁移函数
+// Data migration from KV
 async function migrateFromKV() {
   let cursor = null;
   do {
@@ -426,20 +533,20 @@ export default {
     KV_BINDING = env.KV_BINDING;
     DB = env.DB;
     
-    // 初始化数据库
+    // Initialize the database
     await initDatabase();
     
     const url = new URL(request.url);
     const path = url.pathname.slice(1);
 
-    // 根目录跳转到 管理后台
+    // Root path redirects to the admin dashboard
     if (path === '') {
       return Response.redirect(url.origin + '/admin.html', 302);
     }
 
-    // API 路由处理
+    // API route handling
     if (path.startsWith('api/')) {
-      // 登录 API
+      // Login API
       if (path === 'api/login' && request.method === 'POST') {
         const { password } = await request.json();
         if (password === env.PASSWORD) {
@@ -450,20 +557,20 @@ export default {
         return new Response('Unauthorized', { status: 401 });
       }
 
-      // 登出 API
+      // Logout API
       if (path === 'api/logout' && request.method === 'POST') {
         return new Response(JSON.stringify({ success: true }), {
           headers: clearAuthCookie()
         });
       }
 
-      // 需要认证的 API
+      // APIs that require authentication
       if (!verifyAuthCookie(request, env)) {
         return new Response('Unauthorized', { status: 401 });
       }
 
       try {
-        // 获取即将过期和已过期的映射
+        // Expiring / expired mappings
         if (path === 'api/expiring-mappings') {
           const result = await getExpiringMappings();
           return new Response(JSON.stringify(result), {
@@ -471,7 +578,7 @@ export default {
           });
         }
 
-        // 获取映射列表
+        // List mappings
         if (path === 'api/mappings') {
           const params = new URLSearchParams(url.search);
           const page = parseInt(params.get('page')) || 1;
@@ -484,9 +591,9 @@ export default {
           });
         }
 
-        // 映射管理 API
+        // Mapping management API
         if (path === 'api/mapping') {
-          // 获取单个映射
+          // Get a single mapping
           if (request.method === 'GET') {
             const params = new URLSearchParams(url.search);
             const mappingPath = params.get('path');
@@ -514,7 +621,7 @@ export default {
             });
           }
 
-          // 创建映射
+          // Create a mapping
           if (request.method === 'POST') {
             const data = await request.json();
             await createMapping(data.path, data.target, data.name, data.expiry, data.enabled, data.isWechat, data.qrCodeData);
@@ -523,7 +630,7 @@ export default {
             });
           }
 
-          // 更新映射
+          // Update a mapping
           if (request.method === 'PUT') {
             const data = await request.json();
             await updateMapping(
@@ -541,7 +648,7 @@ export default {
             });
           }
 
-          // 删除映射
+          // Delete a mapping
           if (request.method === 'DELETE') {
             const { path } = await request.json();
             await deleteMapping(path);
@@ -551,7 +658,7 @@ export default {
           }
         }
 
-        // 置顶 / 取消置顶映射
+        // Pin / unpin a mapping
         if (path === 'api/mapping/pin') {
           if (request.method === 'POST') {
             const { path: pinnedPath, pinned } = await request.json();
@@ -574,35 +681,37 @@ export default {
         return new Response(JSON.stringify({
           error: error.message || 'Internal Server Error'
         }), {
-          status: error.message === 'Invalid input' ? 400 : 500,
+          status: error.message === 'INVALID_INPUT' ? 400 : 500,
           headers: { 'Content-Type': 'application/json' }
         });
       }
     }
 
-    // URL 重定向处理
+    // URL redirection handling
     if (path) {
       try {
+        const lang = pickLang(request);
+        const T = PUBLIC_I18N[lang];
         const mapping = await DB.prepare(`
           SELECT path, target, name, expiry, enabled, isWechat, qrCodeData
           FROM mappings
           WHERE path = ?
         `).bind(path).first();
         if (mapping) {
-          // 检查是否启用
+          // Check whether the link is enabled
           if (!mapping.enabled) {
             return new Response('Not Found', { status: 404 });
           }
 
-          // 检查是否过期
+          // Check whether the link is expired
           if (mapping.expiry) {
             if (Number(mapping.expiry) < Date.now()) {
               const expiredHtml = `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="${lang}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>链接已过期</title>
+    <title>${T.expiredTitle}</title>
     <style>
         :root {
             color-scheme: light dark;
@@ -667,9 +776,9 @@ export default {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
         </div>
-        <h1 class="title">${mapping.name ? mapping.name + ' 已过期' : '链接已过期'}</h1>
-        <p class="message">过期时间：${new Date(Number(mapping.expiry)).toLocaleDateString()}</p>
-        <p class="footer">如需访问，请联系管理员更新链接</p>
+        <h1 class="title">${mapping.name ? escapeHtml(mapping.name) + ' ' + T.expiredHeading : T.expiredTitle}</h1>
+        <p class="message">${T.expiredOn}: ${new Date(Number(mapping.expiry)).toLocaleDateString()}</p>
+        <p class="footer">${T.expiredFooter}</p>
     </div>
 </body>
 </html>`;
@@ -683,14 +792,14 @@ export default {
             }
           }
 
-          // 如果是微信二维码，返回活码页面
+          // WeChat QR codes return the live-code page
           if (mapping.isWechat === 1 && mapping.qrCodeData) {
             const wechatHtml = `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="${lang}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${mapping.name || '微信群二维码'}</title>
+    <title>${mapping.name ? escapeHtml(mapping.name) : T.wechatTitle}</title>
     <style>
         :root {
             color-scheme: light dark;
@@ -759,10 +868,10 @@ export default {
 <body>
     <div class="card">
         <div class="icon"><img src="wechat.svg" alt="WeChat"></div>
-        <h1 class="title">${mapping.name ? mapping.name : '微信二维码'}</h1>
-        <p class="notice">请长按识别下方二维码</p>
-        <div class="qr-wrap"><img class="qr-code" src="${mapping.qrCodeData}" alt="微信群二维码"></div>
-        <p class="footer">二维码失效请联系作者更新</p>
+        <h1 class="title">${mapping.name ? escapeHtml(mapping.name) : T.wechatHeading}</h1>
+        <p class="notice">${T.wechatNotice}</p>
+        <div class="qr-wrap"><img class="qr-code" src="${mapping.qrCodeData}" alt="WeChat QR"></div>
+        <p class="footer">${T.wechatFooter}</p>
     </div>
 </body>
 </html>`;
@@ -774,7 +883,7 @@ export default {
             });
           }
 
-          // 如果不是微信二维码，执行普通重定向
+          // Non-WeChat links perform a normal redirect
           return Response.redirect(mapping.target, 302);
         }
         return new Response('Not Found', { status: 404 });
@@ -789,10 +898,10 @@ export default {
     KV_BINDING = env.KV_BINDING;
     DB = env.DB;
     
-    // 初始化数据库
+    // Initialize the database
     await initDatabase();
         
-    // 获取过期和即将过期的映射报告
+    // Build the expired / expiring report
     const result = await getExpiringMappings();
 
     console.log(`Cron job report: Found ${result.expired.length} expired mappings`);

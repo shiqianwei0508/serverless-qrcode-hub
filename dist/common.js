@@ -1,10 +1,15 @@
 /*
- * common.js — 登录页与管理后台共享逻辑
- * 职责：首屏前设定主题（防闪烁）、主题切换、系统主题监听、统一 Toast/Alert。
- * 由 login.html 与 admin.html 在 <head> 内以 <script src> 同步引入。
+ * common.js — shared logic for the login and admin pages.
+ *
+ * Responsibilities: set the theme before first paint (avoid flash),
+ * toggle the theme, follow the system theme, and provide a unified
+ * Toast/Alert. Also bootstraps i18n (set <html lang>, apply translations,
+ * render the language switcher) which is defined in i18n.js.
+ *
+ * Loaded synchronously inside <head> before any page markup.
  */
 
-/* 1. 首屏前设定主题，避免深浅色闪烁 */
+/* 1. Set the theme before first paint to avoid a dark/light flash. */
 (function () {
   const savedTheme = localStorage.getItem('theme');
   const mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
@@ -16,7 +21,7 @@
   }
 })();
 
-/* 2. 主题循环切换：system -> light -> dark -> system */
+/* 2. Cycle the theme: system -> light -> dark -> system. */
 function toggleTheme() {
   const current = localStorage.getItem('theme') || 'system';
   const order = { system: 'light', light: 'dark', dark: 'system' };
@@ -27,7 +32,7 @@ function toggleTheme() {
   updateThemeIcon(next);
 }
 
-/* 3. 根据主题切换右上角按钮的 SVG 图标 */
+/* 3. Swap the top-right button's SVG icon to match the theme. */
 function updateThemeIcon(theme) {
   const path = document.querySelector('#themeToggleBtn path');
   if (!path) return;
@@ -39,7 +44,7 @@ function updateThemeIcon(theme) {
   path.setAttribute('d', icons[theme] || icons.system);
 }
 
-/* 4. 跟随系统变化（仅当主题为 system 时） */
+/* 4. Follow system theme changes, but only while theme is set to "system". */
 if (window.matchMedia) {
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
     if (localStorage.getItem('theme') === 'system') {
@@ -48,7 +53,7 @@ if (window.matchMedia) {
   });
 }
 
-/* 5. 初始化主题按钮（DOM 就绪后调用一次） */
+/* 5. Initialize the theme button once the DOM is ready. */
 function initThemeToggle() {
   updateThemeIcon(localStorage.getItem('theme') || 'system');
   const btn = document.getElementById('themeToggleBtn');
@@ -57,7 +62,26 @@ function initThemeToggle() {
 
 document.addEventListener('DOMContentLoaded', initThemeToggle);
 
-/* 6. 统一 Toast / Alert 提示 */
+/* 6. Internationalization bootstrap (shared by login & admin).
+ * The active language is detected before paint in i18n.js. Here we set the
+ * <html lang> attribute, translate static markup, and render any language
+ * switcher placed in a [data-lang-switcher] container. A page may register a
+ * global onLangChange(lang) hook to re-render dynamic content. */
+document.addEventListener('DOMContentLoaded', function () {
+  if (!window.I18N) return;
+  document.documentElement.setAttribute('lang', I18N.getLang());
+  I18N.applyI18n();
+  const switchers = document.querySelectorAll('[data-lang-switcher]');
+  for (let i = 0; i < switchers.length; i++) {
+    I18N.createLangSwitcher(switchers[i]);
+  }
+  onLangChange = function (lang) {
+    I18N.applyI18n();
+    if (typeof window.__onLangChange === 'function') window.__onLangChange(lang);
+  };
+});
+
+/* 7. Unified Toast / Alert. */
 const ALERT_ICONS = {
   success: '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
   error: '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',

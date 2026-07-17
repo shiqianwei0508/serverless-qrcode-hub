@@ -2,8 +2,10 @@
 <html data-theme="light">
 
 <head>
+    <!-- Shared logic: theme + i18n bootstrap. i18n.js must load first. -->
+    <script src="/i18n.js"></script>
     <script src="/common.js"></script>
-    <title>登录 · 二维码中枢</title>
+    <title data-i18n="login.title">Sign In · QR Code Hub</title>
     <meta charset="UTF-8">
     <meta name="darkreader-lock">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -13,10 +15,11 @@
 </head>
 
 <body class="auth-page">
-    <!-- 主题切换 -->
-    <div class="absolute top-4 right-4 z-20">
-        <div class="tooltip tooltip-left" data-tip="切换主题">
-            <button id="themeToggleBtn" class="btn btn-ghost btn-circle" aria-label="切换主题">
+    <!-- Top-right controls: language switcher + theme toggle -->
+    <div class="absolute top-4 right-4 z-20 flex items-center gap-2">
+        <div data-lang-switcher></div>
+        <div class="tooltip tooltip-left" data-i18n-tip="admin.themeToggle" data-tip="Toggle theme">
+            <button id="themeToggleBtn" class="btn btn-ghost btn-circle" data-i18n-aria="admin.themeToggle" aria-label="Toggle theme">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
                     class="w-5 h-5">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -29,18 +32,18 @@
     <main class="flex-1 flex items-center justify-center px-4 w-full py-10">
         <div class="card w-[92%] max-w-sm bg-base-100 auth-card">
             <div class="card-body p-7 md:p-9">
-                <!-- 品牌区 -->
+                <!-- Brand area -->
                 <div class="flex flex-col items-center text-center mb-7">
                     <div class="brand-logo mb-4">
                         <img src="/favicon.svg" alt="logo">
                     </div>
-                    <h1 class="text-2xl font-bold tracking-tight">二维码中枢</h1>
+                    <h1 class="text-2xl font-bold tracking-tight">QR Code Hub</h1>
                     <p class="text-sm text-base-content/60 mt-1">Serverless QR Code Hub</p>
                 </div>
 
                 <div class="form-control w-full">
                     <label for="password" class="label pb-1">
-                        <span class="label-text text-base-content/70">管理密码</span>
+                        <span class="label-text text-base-content/70" data-i18n="login.passwordLabel">Admin Password</span>
                     </label>
                     <div class="relative">
                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40">
@@ -50,15 +53,15 @@
                                     d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
                         </span>
-                        <input type="password" id="password" placeholder="请输入管理密码"
+                        <input type="password" id="password" data-i18n-ph="login.passwordPlaceholder" placeholder="Enter admin password"
                             class="input input-bordered w-full pl-10 text-base h-12"
                             autocomplete="current-password">
                     </div>
 
                     <div class="flex flex-col gap-2 mt-6">
                         <button onclick="login()" id="loginBtn"
-                            class="btn btn-primary h-12 text-base w-full">
-                            登 录
+                            class="btn btn-primary h-12 text-base w-full" data-i18n="login.button">
+                            Sign In
                         </button>
                     </div>
 
@@ -68,7 +71,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <span>密码错误，请重试</span>
+                        <span data-i18n="login.errorWrongPassword">Wrong password, please try again</span>
                     </div>
                 </div>
             </div>
@@ -82,11 +85,12 @@
                 <a href="https://github.com/xxnuo/serverless-qrcode-hub"
                     class="link link-primary font-medium" target="_blank">xxnuo/serverless-qrcode-hub</a>
             </p>
-            <p>如果觉得有用，请给我一个 Star ⭐️</p>
+            <p data-i18n="login.starText">If you find this useful, please give it a Star ⭐️</p>
         </div>
     </footer>
 
     <script>
+        // Sign in flow. Uses I18N.t for any user-facing message so it stays localized.
         async function login() {
             const password = document.getElementById('password').value;
             const error = document.getElementById('error');
@@ -95,7 +99,7 @@
             button.disabled = true;
             button.innerHTML = `
                 <span class="loading loading-spinner"></span>
-                登录中...
+                ${I18N.t('login.signingIn')}
             `;
 
             try {
@@ -110,24 +114,24 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                         </svg>
-                        登录成功
+                        ${I18N.t('login.loginSuccess')}
                     `;
                     window.location.href = '/admin';
                 } else {
                     const data = await response.json().catch(() => ({}));
-                    error.querySelector('span').textContent = data.error || '密码错误，请重试';
+                    error.querySelector('span').textContent = data.error || I18N.t('login.errorWrongPassword');
                     error.style.display = 'flex';
                     error.classList.remove('alert-enter');
                     void error.offsetWidth;
                     error.classList.add('alert-show');
                     button.disabled = false;
-                    button.textContent = '登 录';
+                    button.textContent = I18N.t('login.button');
                 }
             } catch (e) {
-                error.querySelector('span').textContent = '网络错误，请稍后重试';
+                error.querySelector('span').textContent = I18N.t('login.networkError');
                 error.style.display = 'flex';
                 button.disabled = false;
-                button.textContent = '登 录';
+                button.textContent = I18N.t('login.button');
             }
         }
 

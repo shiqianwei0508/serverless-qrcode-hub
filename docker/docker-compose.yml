@@ -1,15 +1,15 @@
-# serverless-qrcode-hub 容器启动方案
+# serverless-qrcode-hub container startup
 #
-# 用法：
-#   默认（海外镜像源）：
+# Usage:
+#   Default (overseas mirror):
 #     docker compose up -d --build
-#   启用国内镜像源（apt 阿里云 / npm npmmirror，时区 Asia/Shanghai）：
+#   Enable the China mirror (Aliyun apt / npmmirror npm, Asia/Shanghai timezone):
 #     USE_CN_MIRROR=true docker compose up -d --build
-#   自定义后台登录密码：
+#   Custom admin password:
 #     APP_PASSWORD=yourpass docker compose up -d --build
 #
-# 数据持久化：宿主机部署目录下的 ./data 挂载到容器 /app/data，
-# D1 数据库（SQLite）写入其中，容器重启/重建后数据不丢失。
+# Data persistence: the host ./data is mounted to /app/data, where the D1
+# database (SQLite) is written, surviving container restarts and rebuilds.
 
 services:
   qrcode-hub:
@@ -25,7 +25,7 @@ services:
     environment:
       - APP_PASSWORD=${APP_PASSWORD:-test1234}
     volumes:
-      # 持久化 D1 数据到部署目录的 data 目录
+      # Persist D1 data into the deployment's data directory
       - ./data:/app/data
     restart: unless-stopped
     healthcheck:
